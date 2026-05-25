@@ -66,7 +66,7 @@ export default function Header() {
             ...(isActive("/notifications") && styles.activeLink),
           }}
         >
-          Thông báo
+          Sinh viên
         </Link>
 
         {user && (
