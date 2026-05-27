@@ -30,10 +30,10 @@ export default function Header() {
       {/* MENU */}
       <nav style={styles.menu}>
         <Link
-          to="/"
+          to="/lecturer"
           style={{
             ...styles.link,
-            ...(isActive("/") && styles.activeLink),
+            ...(isActive("/lecturer") && styles.activeLink),
           }}
         >
           Home
@@ -50,10 +50,10 @@ export default function Header() {
         </Link>
 
         <Link
-          to="/internship"
+          to="/lecturer/applications"
           style={{
             ...styles.link,
-            ...(isActive("/internship") && styles.activeLink),
+            ...(isActive("/lecturer/applications") && styles.activeLink),
           }}
         >
           Thực tập

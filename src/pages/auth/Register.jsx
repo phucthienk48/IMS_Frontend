@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
+import { motion, AnimatePresence } from "framer-motion";
 
 export default function Register() {
   const navigate = useNavigate();
@@ -8,14 +9,11 @@ export default function Register() {
     username: "",
     email: "",
     password: "",
-    role: "student",
   });
 
   const [loading, setLoading] = useState(false);
-
   const [error, setError] = useState("");
 
-  // nhập dữ liệu
   const handleChange = (e) => {
     setForm({
       ...form,
@@ -23,17 +21,11 @@ export default function Register() {
     });
   };
 
-  // đăng ký
   const handleSubmit = async (e) => {
     e.preventDefault();
-
     setError("");
 
-    if (
-      !form.username ||
-      !form.email ||
-      !form.password
-    ) {
+    if (!form.username || !form.email || !form.password) {
       setError("Vui lòng nhập đầy đủ thông tin");
       return;
     }
@@ -41,29 +33,21 @@ export default function Register() {
     try {
       setLoading(true);
 
-      const res = await fetch(
-        "http://localhost:5000/api/auth/register",
-        {
-          method: "POST",
-
-          headers: {
-            "Content-Type": "application/json",
-          },
-
-          body: JSON.stringify(form),
-        }
-      );
+      const res = await fetch("http://localhost:5000/api/auth/register", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(form),
+      });
 
       const result = await res.json();
 
       if (!res.ok) {
-        throw new Error(
-          result.message || "Đăng ký thất bại"
-        );
+        throw new Error(result.message || "Đăng ký thất bại");
       }
 
-      alert("Đăng ký thành công");
-
+      alert("Đăng ký tài khoản thành công!");
       navigate("/login");
     } catch (err) {
       setError(err.message);
@@ -72,84 +56,167 @@ export default function Register() {
     }
   };
 
+  // Particles animation
+  const particles = Array.from({ length: 12 });
+
   return (
     <div style={styles.container}>
-      <div style={styles.card}>
+      {/* Background particles */}
+      {particles.map((_, i) => (
+        <motion.div
+          key={i}
+          style={{
+            ...styles.particle,
+            left: `${Math.random() * 100}%`,
+            width: `${Math.random() * 8 + 4}px`,
+            height: `${Math.random() * 8 + 4}px`,
+          }}
+          animate={{
+            y: [0, -700],
+            opacity: [0, 0.8, 0],
+            x: [0, Math.sin(i) * 50],
+          }}
+          transition={{
+            duration: Math.random() * 6 + 5,
+            repeat: Infinity,
+            delay: Math.random() * 5,
+          }}
+        />
+      ))}
+
+      <motion.div
+        initial={{ opacity: 0, y: 40 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.7 }}
+        style={styles.card}
+      >
         {/* LEFT */}
-        <div style={styles.left}>
-          <i
-            className="bi bi-person-plus-fill"
-            style={styles.logo}
-          ></i>
+        <div style={styles.leftSide}>
+          <div style={styles.overlay}>
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.2 }}
+            >
+              <div style={styles.logoBox}>
+                <i className="bi bi-person-plus-fill" style={styles.logoIcon}></i>
+              </div>
 
-          <h1>IMS SYSTEM</h1>
+              <h1 style={styles.brandTitle}>THAM GIA IMS</h1>
+              <p style={styles.brandDesc}>Hệ thống quản lý thực tập thông minh</p>
 
-          <p>Internship Management System</p>
+              <div style={styles.featureList}>
+                <div style={styles.featureItem}>
+                  <i className="bi bi-check-circle-fill"></i>
+                  <span>Khởi tạo hồ sơ nhanh chóng</span>
+                </div>
+                <div style={styles.featureItem}>
+                  <i className="bi bi-check-circle-fill"></i>
+                  <span>Kết nối giảng viên hướng dẫn</span>
+                </div>
+                <div style={styles.featureItem}>
+                  <i className="bi bi-check-circle-fill"></i>
+                  <span>Theo dõi kết quả thực tập</span>
+                </div>
+              </div>
+            </motion.div>
+          </div>
         </div>
 
         {/* RIGHT */}
-        <div style={styles.right}>
-          <form onSubmit={handleSubmit}>
-            <h2 style={styles.title}>Đăng ký</h2>
+        <div style={styles.rightSide}>
+          <form style={styles.form} onSubmit={handleSubmit}>
+            <div style={styles.header}>
+              <h2 style={styles.title}>Đăng Ký</h2>
+              <p style={styles.subtitle}>Tạo tài khoản mới trong hệ thống IMS</p>
+            </div>
 
-            {error && (
-              <div style={styles.error}>
-                {error}
+            <AnimatePresence>
+              {error && (
+                <motion.div
+                  initial={{ opacity: 0, x: -15 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0 }}
+                  style={styles.errorBox}
+                >
+                  <i className="bi bi-exclamation-circle-fill" style={{ marginRight: 8 }}></i>
+                  {error}
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {/* USERNAME */}
+            <div style={styles.inputGroup}>
+              <label style={styles.label}>Tên đăng nhập (Username)</label>
+              <div style={styles.inputWrapper}>
+                <i className="bi bi-person-fill" style={styles.icon}></i>
+                <input
+                  type="text"
+                  name="username"
+                  placeholder="Nhập username..."
+                  value={form.username}
+                  onChange={handleChange}
+                  style={styles.input}
+                />
               </div>
-            )}
+            </div>
 
-            {/* username */}
-            <input
-              type="text"
-              name="username"
-              placeholder="Nhập username"
-              value={form.username}
-              onChange={handleChange}
-              style={styles.input}
-            />
+            {/* EMAIL */}
+            <div style={styles.inputGroup}>
+              <label style={styles.label}>Email</label>
+              <div style={styles.inputWrapper}>
+                <i className="bi bi-envelope-fill" style={styles.icon}></i>
+                <input
+                  type="email"
+                  name="email"
+                  placeholder="example@gmail.com"
+                  value={form.email}
+                  onChange={handleChange}
+                  style={styles.input}
+                />
+              </div>
+            </div>
 
-            {/* email */}
-            <input
-              type="email"
-              name="email"
-              placeholder="Nhập email"
-              value={form.email}
-              onChange={handleChange}
-              style={styles.input}
-            />
-
-            {/* password */}
-            <input
-              type="password"
-              name="password"
-              placeholder="Nhập mật khẩu"
-              value={form.password}
-              onChange={handleChange}
-              style={styles.input}
-            />
+            {/* PASSWORD */}
+            <div style={styles.inputGroup}>
+              <label style={styles.label}>Mật khẩu</label>
+              <div style={styles.inputWrapper}>
+                <i className="bi bi-lock-fill" style={styles.icon}></i>
+                <input
+                  type="password"
+                  name="password"
+                  placeholder="••••••••"
+                  value={form.password}
+                  onChange={handleChange}
+                  style={styles.input}
+                />
+              </div>
+            </div>
 
 
-
-            {/* button */}
-            <button
+            {/* BUTTON */}
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
               type="submit"
-              style={styles.button}
+              style={{
+                ...styles.submitBtn,
+                ...(loading ? styles.disabled : {}),
+              }}
               disabled={loading}
             >
-              {loading
-                ? "Đang đăng ký..."
-                : "Đăng ký"}
-            </button>
+              {loading ? "Đang đăng ký..." : "Đăng ký tài khoản"}
+            </motion.button>
 
-            <p style={styles.text}>
+            <p style={styles.footerText}>
               Đã có tài khoản?{" "}
               <Link to="/login" style={styles.link}>
-                Đăng nhập
+                Đăng nhập ngay
               </Link>
             </p>
           </form>
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 }
@@ -157,123 +224,214 @@ export default function Register() {
 const styles = {
   container: {
     minHeight: "100vh",
-
     display: "flex",
     justifyContent: "center",
     alignItems: "center",
+    background: "linear-gradient(135deg, #1e3a8a 0%, #2563eb 45%, #3b82f6 100%)",
+    overflow: "hidden",
+    position: "relative",
+    fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
+  },
 
-    background:
-      "linear-gradient(135deg, #1e3a8a, #2563eb, #3b82f6)",
-
-    fontFamily: "Arial",
+  particle: {
+    position: "absolute",
+    bottom: -100,
+    borderRadius: "50%",
+    background: "rgba(255,255,255,0.25)",
+    zIndex: 1,
   },
 
   card: {
-    width: "850px",
-
-    display: "flex",
-
+    width: "950px",
+    height: "650px",
     background: "#fff",
-
-    borderRadius: 20,
-
+    borderRadius: 35,
     overflow: "hidden",
-
-    boxShadow: "0 10px 30px rgba(0,0,0,0.2)",
+    display: "flex",
+    boxShadow: "0 20px 60px rgba(0,0,0,0.3)",
+    position: "relative",
+    zIndex: 10,
   },
 
-  left: {
-    flex: 1,
+  leftSide: {
+    flex: 1.1,
+    background: "url('https://images.unsplash.com/photo-1434030216411-0b793f4b4173?q=80&w=1200&auto=format&fit=crop') center/cover",
+    position: "relative",
+  },
 
-    background: "#1e40af",
-
-    color: "#fff",
-
+  overlay: {
+    position: "absolute",
+    inset: 0,
+    background: "linear-gradient(to bottom, rgba(30,58,138,0.55), rgba(30,64,175,0.92))",
     display: "flex",
-    flexDirection: "column",
-
     justifyContent: "center",
     alignItems: "center",
-
+    textAlign: "center",
+    color: "#fff",
     padding: 40,
   },
 
-  logo: {
-    fontSize: 60,
+  logoBox: {
+    width: 90,
+    height: 90,
+    borderRadius: 20,
+    background: "rgba(255,255,255,0.15)",
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+    margin: "0 auto 20px",
+    backdropFilter: "blur(8px)",
+    border: "1px solid rgba(255,255,255,0.25)",
+  },
 
+  logoIcon: {
+    fontSize: 42,
+    color: "#fff",
+  },
+
+  brandTitle: {
+    fontSize: 42,
+    fontWeight: 900,
+    letterSpacing: 1,
+    marginBottom: 10,
+  },
+
+  brandDesc: {
+    fontSize: 16,
+    opacity: 0.95,
+    marginBottom: 35,
+  },
+
+  featureList: {
+    display: "flex",
+    flexDirection: "column",
+    gap: 15,
+    alignItems: "flex-start",
+  },
+
+  featureItem: {
+    display: "flex",
+    alignItems: "center",
+    gap: 10,
+    fontSize: 15,
+    fontWeight: 500,
+  },
+
+  rightSide: {
+    flex: 1,
+    background: "#fff",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: "30px 50px",
+  },
+
+  form: {
+    width: "100%",
+  },
+
+  header: {
     marginBottom: 20,
   },
 
-  right: {
-    flex: 1,
-
-    padding: 50,
+  title: {
+    fontSize: 30,
+    fontWeight: 800,
+    color: "#1e3a8a",
+    marginBottom: 6,
   },
 
-  title: {
-    marginBottom: 25,
+  subtitle: {
+    fontSize: 14,
+    color: "#64748b",
+  },
 
-    color: "#1e3a8a",
+  errorBox: {
+    background: "#fef2f2",
+    color: "#dc2626",
+    padding: "10px 14px",
+    borderRadius: 12,
+    marginBottom: 15,
+    fontSize: 14,
+    borderLeft: "4px solid #dc2626",
+  },
+
+  inputGroup: {
+    marginBottom: 14,
+  },
+
+  label: {
+    display: "block",
+    marginBottom: 6,
+    fontSize: 12,
+    fontWeight: 700,
+    color: "#334155",
+    textTransform: "uppercase",
+  },
+
+  inputWrapper: {
+    display: "flex",
+    alignItems: "center",
+    background: "#f8fafc",
+    border: "1px solid #dbeafe",
+    borderRadius: 14,
+    padding: "0 14px",
+  },
+
+  icon: {
+    color: "#2563eb",
+    fontSize: 18,
   },
 
   input: {
-    width: "100%",
-
-    padding: 14,
-
-    marginBottom: 16,
-
-    borderRadius: 8,
-
-    border: "1px solid #ccc",
-
-    fontSize: 15,
+    flex: 1,
+    border: "none",
+    outline: "none",
+    background: "transparent",
+    padding: "12px 14px",
+    fontSize: 14,
   },
 
-  button: {
-    width: "100%",
-
-    padding: 14,
-
+  select: {
+    flex: 1,
     border: "none",
-
-    borderRadius: 8,
-
-    background: "#2563eb",
-
-    color: "#fff",
-
-    fontSize: 16,
-    fontWeight: "bold",
-
+    outline: "none",
+    background: "transparent",
+    padding: "12px 14px",
+    fontSize: 14,
+    color: "#334155",
     cursor: "pointer",
   },
 
-  error: {
-    background: "#fee2e2",
-
-    color: "#b91c1c",
-
-    padding: 10,
-
-    borderRadius: 6,
-
-    marginBottom: 16,
+  submitBtn: {
+    width: "100%",
+    border: "none",
+    padding: 14,
+    borderRadius: 14,
+    background: "linear-gradient(135deg, #2563eb 0%, #3b82f6 100%)",
+    color: "#fff",
+    fontSize: 15,
+    fontWeight: 700,
+    cursor: "pointer",
+    boxShadow: "0 8px 16px rgba(37,99,235,0.2)",
+    marginTop: 10,
   },
 
-  text: {
-    marginTop: 20,
+  disabled: {
+    background: "#94a3b8",
+    boxShadow: "none",
+  },
 
+  footerText: {
+    marginTop: 15,
     textAlign: "center",
-
     fontSize: 14,
+    color: "#64748b",
   },
 
   link: {
     color: "#2563eb",
-
-    fontWeight: "bold",
-
+    fontWeight: 700,
     textDecoration: "none",
   },
 };

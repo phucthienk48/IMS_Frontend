@@ -50,7 +50,7 @@ export default function Header() {
         </Link>
 
         <Link
-          to="/internship"
+          to="/application"
           style={{
             ...styles.link,
             ...(isActive("/internship") && styles.activeLink),

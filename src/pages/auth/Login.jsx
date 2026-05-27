@@ -50,7 +50,7 @@ export default function Login() {
         throw new Error(result.message || "Đăng nhập thất bại");
       }
 
-      localStorage.setItem("token", result.token);
+      localStorage.setItem("token", result.accessToken || result.token);
       localStorage.setItem("user", JSON.stringify(result.user));
 
       if (result.user.role === "admin") {
