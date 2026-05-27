@@ -69,17 +69,6 @@ export default function Header() {
           Thông báo
         </Link>
 
-        {user && (
-          <Link
-            to="/profile"
-            style={{
-              ...styles.link,
-              ...(isActive("/profile") && styles.activeLink),
-            }}
-          >
-            Profile
-          </Link>
-        )}
       </nav>
 
       {/* ACTION */}
@@ -148,10 +137,10 @@ const styles = {
   link: {
     color: "#fff",
     textDecoration: "none",
-    fontSize: 15,
-    fontWeight: 500,
+    fontSize: 18,
+    fontWeight: 600,
 
-    padding: "8px 14px",
+    padding: "6px 6px",
     borderRadius: 8,
 
     transition: "0.3s",
@@ -180,7 +169,7 @@ const styles = {
   },
 
   username: {
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: 500,
   },
 
