@@ -24,23 +24,59 @@ export default function LecturerApplication() {
     }
   };
 
+  const [topics, setTopics] = useState([]);
+  const fetchTopics = async () => {
+    try {
+      const res = await fetch("http://localhost:5000/api/internship-topics");
+      const data = await res.json();
+      setTopics(data.data || []);
+    } catch (err) {
+      console.error("Lỗi lấy danh sách đề tài:", err);
+      setTopics([]);
+    }
+  };
+
   useEffect(() => {
     fetchApplications();
+    fetchTopics();
   }, []);
 
   useEffect(() => {
     setCurrentPage(1);
   }, [search, statusFilter]);
 
+  const getBadgeStyle = (status) => {
+    const base = {
+      padding: "4px 10px",
+      borderRadius: "999px",
+      fontSize: "12px",
+      fontWeight: "bold",
+      display: "inline-block",
+    };
+    switch ((status || "").toLowerCase()) {
+      case "chờ duyệt":
+        return { ...base, background: "#fef3c7", color: "#b45309" };
+      case "đã duyệt":
+        return { ...base, background: "#dcfce7", color: "#166534" };
+      case "từ chối":
+        return { ...base, background: "#fee2e2", color: "#991b1b" };
+      default:
+        return { ...base, background: "#eef2ff", color: "#3730a3" };
+    }
+  };
+
   const handleUpdateStatus = async (id, status) => {
     try {
-      const res = await fetch(`http://localhost:5000/api/application/${id}/status`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
+      const res = await fetch(
+        `http://localhost:5000/api/application/${id}/status`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ status }),
         },
-        body: JSON.stringify({ status }),
-      });
+      );
       const data = await res.json();
       if (res.ok) {
         alert("Cập nhật trạng thái hồ sơ thành công!");
@@ -54,7 +90,8 @@ export default function LecturerApplication() {
     }
   };
 
-  if (loading) return <p style={{ padding: 20 }}>⏳ Đang tải hồ sơ đăng ký thực tập...</p>;
+  if (loading)
+    return <p style={{ padding: 20 }}>⏳ Đang tải hồ sơ đăng ký thực tập...</p>;
 
   // Thống kê số lượng
   const stats = {
@@ -77,22 +114,24 @@ export default function LecturerApplication() {
     return matchSearch && matchStatus;
   });
 
-  // Phân trang
-  const indexOfLastItem = currentPage * itemsPerPage;
-  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentApps = filteredApps.slice(indexOfFirstItem, indexOfLastItem);
-  const totalPages = Math.ceil(filteredApps.length / itemsPerPage);
+  // Nhóm hồ sơ theo đề tài
+  // Build grouped list based on topics collection so topics with 0 apps still appear
+  const freeApps = [];
+  const groupedTopicList = topics.map((t) => {
+    const appsForTopic = filteredApps.filter((app) => {
+      // support app.topic being object or id string
+      const appTopicId = app.topic && (app.topic._id || app.topic);
+      return appTopicId === t._id;
+    });
+    return { topic: t, apps: appsForTopic };
+  });
 
-  const getBadgeStyle = (status) => {
-    switch (status) {
-      case "đã duyệt":
-        return { background: "#dcfce7", color: "#166534" };
-      case "từ chối":
-        return { background: "#fee2e2", color: "#991b1b" };
-      default:
-        return { background: "#fef3c7", color: "#92400e" };
-    }
-  };
+  // apps that have no topic or topic not in topics list
+  filteredApps.forEach((app) => {
+    const appTopicId = app.topic && (app.topic._id || app.topic);
+    const found = topics.find((t) => t._id === appTopicId);
+    if (!app.topic || !found) freeApps.push(app);
+  });
 
   return (
     <div style={styles.container}>
@@ -103,10 +142,15 @@ export default function LecturerApplication() {
             <i className="bi bi-arrow-left"></i> Quay lại
           </button>
           <h2 style={styles.pageTitle}>
-            <i className="bi bi-file-earmark-text-fill" style={styles.titleIcon}></i>
+            <i
+              className="bi bi-file-earmark-text-fill"
+              style={styles.titleIcon}
+            ></i>
             QUẢN LÝ HỒ SƠ THỰC TẬP
           </h2>
-          <p style={styles.subTitle}>Dành cho giảng viên hướng dẫn: {user.username}</p>
+          <p style={styles.subTitle}>
+            Dành cho giảng viên hướng dẫn: {user.username}
+          </p>
         </div>
       </div>
 
@@ -114,19 +158,27 @@ export default function LecturerApplication() {
       <div style={styles.statsGrid}>
         <div style={{ ...styles.statsCard, borderTop: "4px solid #2563eb" }}>
           <span style={styles.statsLabel}>Tổng số hồ sơ</span>
-          <span style={{ ...styles.statsValue, color: "#2563eb" }}>{stats.total}</span>
+          <span style={{ ...styles.statsValue, color: "#2563eb" }}>
+            {stats.total}
+          </span>
         </div>
         <div style={{ ...styles.statsCard, borderTop: "4px solid #d97706" }}>
           <span style={styles.statsLabel}>Chờ duyệt</span>
-          <span style={{ ...styles.statsValue, color: "#d97706" }}>{stats.pending}</span>
+          <span style={{ ...styles.statsValue, color: "#d97706" }}>
+            {stats.pending}
+          </span>
         </div>
         <div style={{ ...styles.statsCard, borderTop: "4px solid #16a34a" }}>
           <span style={styles.statsLabel}>Đã duyệt</span>
-          <span style={{ ...styles.statsValue, color: "#16a34a" }}>{stats.approved}</span>
+          <span style={{ ...styles.statsValue, color: "#16a34a" }}>
+            {stats.approved}
+          </span>
         </div>
         <div style={{ ...styles.statsCard, borderTop: "4px solid #dc2626" }}>
           <span style={styles.statsLabel}>Từ chối</span>
-          <span style={{ ...styles.statsValue, color: "#dc2626" }}>{stats.rejected}</span>
+          <span style={{ ...styles.statsValue, color: "#dc2626" }}>
+            {stats.rejected}
+          </span>
         </div>
       </div>
 
@@ -154,151 +206,385 @@ export default function LecturerApplication() {
         </select>
       </div>
 
-      {/* Bảng hồ sơ */}
-      <div style={styles.tableWrapper}>
-        <table style={styles.table}>
-          <thead>
-            <tr>
-              <th style={styles.th}>Sinh viên</th>
-              <th style={styles.th}>Ngành & Khóa</th>
-              <th style={styles.th}>Liên hệ</th>
-              <th style={styles.thCenter}>Tài liệu hồ sơ</th>
-              <th style={styles.th}>Ghi chú</th>
-              <th style={styles.thCenter}>Trạng thái</th>
-              <th style={styles.thCenter}>Duyệt hồ sơ</th>
-            </tr>
-          </thead>
-          <tbody>
-            {currentApps.length === 0 ? (
-              <tr>
-                <td colSpan="7" style={{ ...styles.td, textAlign: "center", padding: 30, color: "#6b7280" }}>
-                  Chưa có hồ sơ đăng ký nào.
-                </td>
-              </tr>
-            ) : (
-              currentApps.map((app) => (
-                <tr key={app._id} style={styles.tr}>
-                  <td style={styles.td}>
-                    <div style={{ fontWeight: "bold", color: "#1e3a8a" }}>{app.fullName}</div>
-                    <div style={{ fontSize: "12px", color: "#64748b" }}>MSSV: {app.studentCode}</div>
-                  </td>
-                  <td style={styles.td}>
-                    <div>{app.major}</div>
-                    <div style={{ fontSize: "12px", color: "#64748b" }}>Khóa: {app.course}</div>
-                  </td>
-                  <td style={styles.td}>
-                    <div>{app.email}</div>
-                    <div style={{ fontSize: "12px", color: "#64748b" }}>SĐT: {app.sdt}</div>
-                  </td>
-                  <td style={styles.tdCenter}>
-                    <div style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: "center" }}>
-                      {app.cvFile && (
-                        <a
-                          href={`http://localhost:5000${app.cvFile}`}
-                          target="_blank"
-                          rel="noreferrer"
-                          style={styles.fileLink}
-                        >
-                          <i className="bi bi-file-earmark-pdf-fill text-danger me-1"></i> CV File
-                        </a>
-                      )}
-                      {app.transcriptFile && (
-                        <a
-                          href={`http://localhost:5000${app.transcriptFile}`}
-                          target="_blank"
-                          rel="noreferrer"
-                          style={styles.fileLink}
-                        >
-                          <i className="bi bi-file-earmark-spreadsheet-fill text-success me-1"></i> Bảng điểm
-                        </a>
-                      )}
-                    </div>
-                  </td>
-                  <td style={styles.td}>
-                    <div style={{ maxWidth: 180, fontSize: "13px", color: "#475569", wordBreak: "break-word" }}>
-                      {app.note || "---"}
-                    </div>
-                  </td>
-                  <td style={styles.tdCenter}>
-                    <span style={{ ...styles.badge, ...getBadgeStyle(app.status) }}>
-                      {app.status}
-                    </span>
-                  </td>
-                  <td style={styles.tdCenter}>
-                    <div style={styles.actionGroup}>
-                      {app.status === "chờ duyệt" && (
-                        <>
-                          <button
-                            style={{ ...styles.actionBtn, ...styles.approveBtn }}
-                            onClick={() => handleUpdateStatus(app._id, "đã duyệt")}
-                          >
-                            <i className="bi bi-check2-circle"></i> Duyệt
-                          </button>
-                          <button
-                            style={{ ...styles.actionBtn, ...styles.rejectBtn }}
-                            onClick={() => handleUpdateStatus(app._id, "từ chối")}
-                          >
-                            <i className="bi bi-x-circle"></i> Từ chối
-                          </button>
-                        </>
-                      )}
-                      {app.status !== "chờ duyệt" && (
-                        <button
-                          style={{ ...styles.actionBtn, ...styles.resetBtn }}
-                          onClick={() => handleUpdateStatus(app._id, "chờ duyệt")}
-                        >
-                          <i className="bi bi-arrow-counterclockwise"></i> Đặt lại
-                        </button>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
-
-      {/* Phân trang */}
-      {totalPages > 1 && (
-        <div style={styles.pagination}>
-          <button
-            style={{
-              ...styles.pageBtn,
-              ...(currentPage === 1 && styles.pageBtnDisabled),
-            }}
-            onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
-            disabled={currentPage === 1}
-          >
-            ⬅
-          </button>
-
-          {[...Array(totalPages)].map((_, i) => {
-            const page = i + 1;
+      {/* Danh sách hồ sơ phân nhóm */}
+      {filteredApps.length === 0 ? (
+        <div style={styles.emptyBox}>
+          <i
+            className="bi bi-inbox"
+            style={{ fontSize: 48, color: "#cbd5e1" }}
+          />
+          <p style={{ marginTop: 12, color: "#64748b", fontSize: 16 }}>
+            Không tìm thấy hồ sơ đăng ký nào.
+          </p>
+        </div>
+      ) : (
+        <div>
+          {/* Nhóm theo đề tài */}
+          {groupedTopicList.map(({ topic, apps }) => {
+            const isMyTopic =
+              topic.lecturer?._id === (user._id || user.id) ||
+              topic.lecturer === (user._id || user.id);
             return (
-              <button
-                key={page}
-                style={{
-                  ...styles.pageBtn,
-                  ...(currentPage === page && styles.pageBtnActive),
-                }}
-                onClick={() => setCurrentPage(page)}
-              >
-                {page}
-              </button>
+              <div key={topic._id} style={styles.groupWrapper}>
+                <div
+                  style={{
+                    ...styles.groupHeader,
+                    borderLeft: isMyTopic
+                      ? "6px solid #16a34a"
+                      : "6px solid #2563eb",
+                  }}
+                >
+                  <div style={{ flex: 1 }}>
+                    <h3 style={styles.groupTopicTitle}>
+                      <i
+                        className="bi bi-journal-text"
+                        style={{ marginRight: 8, color: "#1e3a8a" }}
+                      />
+                      Đề tài: {topic.topicname}
+                      {isMyTopic && (
+                        <span style={styles.myTopicBadge}>Đề tài của tôi</span>
+                      )}
+                    </h3>
+                    <div style={styles.groupTopicMeta}>
+                      <span>
+                        <strong>Cán bộ:</strong>{" "}
+                        {topic.lecturer?.username || "Chưa rõ"}
+                      </span>
+                      <span style={{ marginLeft: 20 }}>
+                        <strong>Vị trí:</strong> {topic.position}
+                      </span>
+                      <span style={{ marginLeft: 20 }}>
+                        <strong>Bộ môn:</strong> {topic.department}
+                      </span>
+                    </div>
+                  </div>
+                  <span style={styles.appCountBadge}>{apps.length} hồ sơ</span>
+                </div>
+
+                <div style={styles.tableWrapper}>
+                  <table style={styles.table}>
+                    <thead>
+                      <tr>
+                        <th style={styles.th}>Sinh viên</th>
+                        <th style={styles.th}>Ngành & Khóa</th>
+                        <th style={styles.th}>Liên hệ</th>
+                        <th style={styles.thCenter}>Tài liệu hồ sơ</th>
+                        <th style={styles.th}>Ghi chú</th>
+                        <th style={styles.thCenter}>Trạng thái</th>
+                        <th style={styles.thCenter}>Duyệt hồ sơ</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {apps.map((app) => (
+                        <tr key={app._id} style={styles.tr}>
+                          <td style={styles.td}>
+                            <div
+                              style={{ fontWeight: "bold", color: "#1e3a8a" }}
+                            >
+                              {app.fullName}
+                            </div>
+                            <div style={{ fontSize: "12px", color: "#64748b" }}>
+                              MSSV: {app.studentCode}
+                            </div>
+                          </td>
+                          <td style={styles.td}>
+                            <div>{app.major}</div>
+                            <div style={{ fontSize: "12px", color: "#64748b" }}>
+                              Khóa: {app.course}
+                            </div>
+                          </td>
+                          <td style={styles.td}>
+                            <div>{app.email}</div>
+                            <div style={{ fontSize: "12px", color: "#64748b" }}>
+                              SĐT: {app.sdt}
+                            </div>
+                          </td>
+                          <td style={styles.tdCenter}>
+                            <div
+                              style={{
+                                display: "flex",
+                                flexDirection: "column",
+                                gap: 6,
+                                alignItems: "center",
+                              }}
+                            >
+                              {app.cvFile && (
+                                <a
+                                  href={`http://localhost:5000${app.cvFile}`}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  style={styles.fileLink}
+                                >
+                                  <i className="bi bi-file-earmark-pdf-fill text-danger me-1"></i>{" "}
+                                  CV File
+                                </a>
+                              )}
+                              {app.transcriptFile && (
+                                <a
+                                  href={`http://localhost:5000${app.transcriptFile}`}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  style={styles.fileLink}
+                                >
+                                  <i className="bi bi-file-earmark-spreadsheet-fill text-success me-1"></i>{" "}
+                                  Bảng điểm
+                                </a>
+                              )}
+                            </div>
+                          </td>
+                          <td style={styles.td}>
+                            <div
+                              style={{
+                                maxWidth: 180,
+                                fontSize: "13px",
+                                color: "#475569",
+                                wordBreak: "break-word",
+                              }}
+                            >
+                              {app.note || "---"}
+                            </div>
+                          </td>
+                          <td style={styles.tdCenter}>
+                            <span
+                              style={{
+                                ...styles.badge,
+                                ...getBadgeStyle(app.status),
+                              }}
+                            >
+                              {app.status}
+                            </span>
+                          </td>
+                          <td style={styles.tdCenter}>
+                            <div style={styles.actionGroup}>
+                              {app.status === "chờ duyệt" && (
+                                <>
+                                  <button
+                                    style={{
+                                      ...styles.actionBtn,
+                                      ...styles.approveBtn,
+                                    }}
+                                    onClick={() =>
+                                      handleUpdateStatus(app._id, "đã duyệt")
+                                    }
+                                  >
+                                    <i className="bi bi-check2-circle"></i>{" "}
+                                    Duyệt
+                                  </button>
+                                  <button
+                                    style={{
+                                      ...styles.actionBtn,
+                                      ...styles.rejectBtn,
+                                    }}
+                                    onClick={() =>
+                                      handleUpdateStatus(app._id, "từ chối")
+                                    }
+                                  >
+                                    <i className="bi bi-x-circle"></i> Từ chối
+                                  </button>
+                                </>
+                              )}
+                              {app.status !== "chờ duyệt" && (
+                                <button
+                                  style={{
+                                    ...styles.actionBtn,
+                                    ...styles.resetBtn,
+                                  }}
+                                  onClick={() =>
+                                    handleUpdateStatus(app._id, "chờ duyệt")
+                                  }
+                                >
+                                  <i className="bi bi-arrow-counterclockwise"></i>{" "}
+                                  Đặt lại
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
             );
           })}
 
-          <button
-            style={{
-              ...styles.pageBtn,
-              ...(currentPage === totalPages && styles.pageBtnDisabled),
-            }}
-            onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
-            disabled={currentPage === totalPages}
-          >
-            ➡
-          </button>
+          {/* Nhóm Hồ sơ tự do */}
+          {freeApps.length > 0 && (
+            <div style={styles.groupWrapper}>
+              <div
+                style={{
+                  ...styles.groupHeader,
+                  borderLeft: "6px solid #64748b",
+                  background: "#f1f5f9",
+                }}
+              >
+                <div style={{ flex: 1 }}>
+                  <h3 style={{ ...styles.groupTopicTitle, color: "#475569" }}>
+                    <i
+                      className="bi bi-file-earmark-person-fill"
+                      style={{ marginRight: 8, color: "#475569" }}
+                    />
+                    Danh sách hồ sơ tự do (Không có đề tài)
+                  </h3>
+                  <div style={styles.groupTopicMeta}>
+                    <span>
+                      Các hồ sơ độc lập chưa liên kết với đề tài thực tập nào.
+                    </span>
+                  </div>
+                </div>
+                <span
+                  style={{
+                    ...styles.appCountBadge,
+                    background: "#e2e8f0",
+                    color: "#475569",
+                  }}
+                >
+                  {freeApps.length} hồ sơ
+                </span>
+              </div>
+
+              <div style={styles.tableWrapper}>
+                <table style={styles.table}>
+                  <thead>
+                    <tr>
+                      <th style={styles.th}>Sinh viên</th>
+                      <th style={styles.th}>Ngành & Khóa</th>
+                      <th style={styles.th}>Liên hệ</th>
+                      <th style={styles.thCenter}>Tài liệu hồ sơ</th>
+                      <th style={styles.th}>Ghi chú</th>
+                      <th style={styles.thCenter}>Trạng thái</th>
+                      <th style={styles.thCenter}>Duyệt hồ sơ</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {freeApps.map((app) => (
+                      <tr key={app._id} style={styles.tr}>
+                        <td style={styles.td}>
+                          <div style={{ fontWeight: "bold", color: "#1e3a8a" }}>
+                            {app.fullName}
+                          </div>
+                          <div style={{ fontSize: "12px", color: "#64748b" }}>
+                            MSSV: {app.studentCode}
+                          </div>
+                        </td>
+                        <td style={styles.td}>
+                          <div>{app.major}</div>
+                          <div style={{ fontSize: "12px", color: "#64748b" }}>
+                            Khóa: {app.course}
+                          </div>
+                        </td>
+                        <td style={styles.td}>
+                          <div>{app.email}</div>
+                          <div style={{ fontSize: "12px", color: "#64748b" }}>
+                            SĐT: {app.sdt}
+                          </div>
+                        </td>
+                        <td style={styles.tdCenter}>
+                          <div
+                            style={{
+                              display: "flex",
+                              flexDirection: "column",
+                              gap: 6,
+                              alignItems: "center",
+                            }}
+                          >
+                            {app.cvFile && (
+                              <a
+                                href={`http://localhost:5000${app.cvFile}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                style={styles.fileLink}
+                              >
+                                <i className="bi bi-file-earmark-pdf-fill text-danger me-1"></i>{" "}
+                                CV File
+                              </a>
+                            )}
+                            {app.transcriptFile && (
+                              <a
+                                href={`http://localhost:5000${app.transcriptFile}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                style={styles.fileLink}
+                              >
+                                <i className="bi bi-file-earmark-spreadsheet-fill text-success me-1"></i>{" "}
+                                Bảng điểm
+                              </a>
+                            )}
+                          </div>
+                        </td>
+                        <td style={styles.td}>
+                          <div
+                            style={{
+                              maxWidth: 180,
+                              fontSize: "13px",
+                              color: "#475569",
+                              wordBreak: "break-word",
+                            }}
+                          >
+                            {app.note || "---"}
+                          </div>
+                        </td>
+                        <td style={styles.tdCenter}>
+                          <span
+                            style={{
+                              ...styles.badge,
+                              ...getBadgeStyle(app.status),
+                            }}
+                          >
+                            {app.status}
+                          </span>
+                        </td>
+                        <td style={styles.tdCenter}>
+                          <div style={styles.actionGroup}>
+                            {app.status === "chờ duyệt" && (
+                              <>
+                                <button
+                                  style={{
+                                    ...styles.actionBtn,
+                                    ...styles.approveBtn,
+                                  }}
+                                  onClick={() =>
+                                    handleUpdateStatus(app._id, "đã duyệt")
+                                  }
+                                >
+                                  <i className="bi bi-check2-circle"></i> Duyệt
+                                </button>
+                                <button
+                                  style={{
+                                    ...styles.actionBtn,
+                                    ...styles.rejectBtn,
+                                  }}
+                                  onClick={() =>
+                                    handleUpdateStatus(app._id, "từ chối")
+                                  }
+                                >
+                                  <i className="bi bi-x-circle"></i> Từ chối
+                                </button>
+                              </>
+                            )}
+                            {app.status !== "chờ duyệt" && (
+                              <button
+                                style={{
+                                  ...styles.actionBtn,
+                                  ...styles.resetBtn,
+                                }}
+                                onClick={() =>
+                                  handleUpdateStatus(app._id, "chờ duyệt")
+                                }
+                              >
+                                <i className="bi bi-arrow-counterclockwise"></i>{" "}
+                                Đặt lại
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -307,83 +593,102 @@ export default function LecturerApplication() {
 
 const styles = {
   container: {
-    padding: "20px",
-    background: "#fff",
-    borderRadius: "12px",
-    boxShadow: "0 4px 12px rgba(0,0,0,0.05)",
-    fontFamily: "Arial, sans-serif",
+    minHeight: "100vh",
+    padding: "28px",
+    background:
+      "linear-gradient(180deg, #f8fbff 0%, #eef4ff 50%, #f8fafc 100%)",
+    fontFamily: "'Inter', Arial, sans-serif",
   },
 
   header: {
-    marginBottom: "24px",
+    marginBottom: "28px",
+    background: "#ffffff",
+    borderRadius: "22px",
+    padding: "24px 28px",
+    boxShadow: "0 10px 35px rgba(37,99,235,0.08)",
+    border: "1px solid #e2e8f0",
   },
 
   backBtn: {
-    padding: "6px 12px",
-    background: "transparent",
+    padding: "10px 18px",
+    background: "#eff6ff",
     color: "#2563eb",
-    border: "1px solid #2563eb",
-    borderRadius: "6px",
+    border: "1px solid #bfdbfe",
+    borderRadius: "12px",
     cursor: "pointer",
-    fontSize: "13px",
-    fontWeight: "bold",
-    marginBottom: "12px",
-    transition: "0.2s",
+    fontSize: "14px",
+    fontWeight: "600",
+    marginBottom: "18px",
+    transition: "0.25s ease",
+    display: "flex",
+    alignItems: "center",
+    gap: 6,
   },
 
   pageTitle: {
-    fontSize: "24px",
-    fontWeight: "bold",
-    color: "#1e3a8a",
-    margin: "0 0 4px 0",
+    fontSize: "32px",
+    fontWeight: "800",
+    color: "#0f172a",
+    margin: "0 0 8px 0",
     display: "flex",
     alignItems: "center",
-    gap: 8,
+    gap: 12,
+    letterSpacing: "-0.5px",
   },
 
   titleIcon: {
     color: "#2563eb",
+    fontSize: "28px",
   },
 
   subTitle: {
     color: "#64748b",
-    fontSize: "14px",
+    fontSize: "15px",
     margin: 0,
+    fontWeight: "500",
   },
 
   statsGrid: {
     display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
-    gap: "16px",
-    marginBottom: "24px",
+    gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+    gap: "20px",
+    marginBottom: "28px",
   },
 
   statsCard: {
-    background: "#f8fafc",
-    padding: "16px",
-    borderRadius: "10px",
-    boxShadow: "0 2px 4px rgba(0,0,0,0.02)",
+    background: "#ffffff",
+    padding: "22px",
+    borderRadius: "20px",
+    boxShadow: "0 8px 24px rgba(15,23,42,0.06)",
     display: "flex",
     flexDirection: "column",
-    gap: "4px",
+    gap: "8px",
+    border: "1px solid #e2e8f0",
+    transition: "0.25s ease",
   },
 
   statsLabel: {
-    fontSize: "13px",
+    fontSize: "14px",
     color: "#64748b",
-    fontWeight: 500,
+    fontWeight: "600",
   },
 
   statsValue: {
-    fontSize: "24px",
-    fontWeight: "bold",
+    fontSize: "32px",
+    fontWeight: "800",
+    lineHeight: 1.2,
   },
 
   filterBar: {
     display: "flex",
-    gap: "12px",
-    marginBottom: "16px",
+    gap: "16px",
+    marginBottom: "24px",
     flexWrap: "wrap",
+    background: "#ffffff",
+    padding: "20px",
+    borderRadius: "18px",
+    boxShadow: "0 8px 24px rgba(15,23,42,0.05)",
+    border: "1px solid #e2e8f0",
   },
 
   searchBox: {
@@ -391,162 +696,255 @@ const styles = {
     display: "flex",
     alignItems: "center",
     flex: 1,
-    minWidth: "250px",
+    minWidth: "280px",
   },
 
   searchIcon: {
     position: "absolute",
-    left: "12px",
-    fontSize: "14px",
+    left: "14px",
+    fontSize: "15px",
     color: "#94a3b8",
   },
 
   searchInput: {
     width: "100%",
-    padding: "8px 12px 8px 36px",
-    borderRadius: "8px",
-    border: "1px solid #cbd5e1",
+    padding: "12px 16px 12px 42px",
+    borderRadius: "14px",
+    border: "1px solid #dbe4f0",
     fontSize: "14px",
     outline: "none",
+    background: "#f8fafc",
+    color: "#0f172a",
   },
 
   filterSelect: {
-    padding: "8px 12px",
-    borderRadius: "8px",
-    border: "1px solid #cbd5e1",
+    padding: "12px 16px",
+    borderRadius: "14px",
+    border: "1px solid #dbe4f0",
     fontSize: "14px",
-    background: "#fff",
+    background: "#f8fafc",
     outline: "none",
+    minWidth: "220px",
+    color: "#0f172a",
+    fontWeight: "500",
+  },
+
+  groupWrapper: {
+    marginBottom: "28px",
+    background: "#ffffff",
+    borderRadius: "22px",
+    overflow: "hidden",
+    border: "1px solid #e2e8f0",
+    boxShadow: "0 12px 32px rgba(15,23,42,0.05)",
+  },
+
+  groupHeader: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: "16px",
+    padding: "22px 24px",
+    background:
+      "linear-gradient(90deg, rgba(239,246,255,1) 0%, rgba(248,250,252,1) 100%)",
+  },
+
+  groupTopicTitle: {
+    margin: 0,
+    fontSize: "22px",
+    fontWeight: "800",
+    color: "#0f172a",
+    display: "flex",
+    alignItems: "center",
+    flexWrap: "wrap",
+    gap: 10,
+  },
+
+  myTopicBadge: {
+    background: "#dcfce7",
+    color: "#166534",
+    fontSize: "12px",
+    fontWeight: "700",
+    padding: "6px 12px",
+    borderRadius: "999px",
+  },
+
+  groupTopicMeta: {
+    marginTop: "10px",
+    color: "#64748b",
+    fontSize: "14px",
+    display: "flex",
+    flexWrap: "wrap",
+    gap: "18px",
+  },
+
+  appCountBadge: {
+    background: "#2563eb",
+    color: "#fff",
+    padding: "10px 16px",
+    borderRadius: "14px",
+    fontSize: "14px",
+    fontWeight: "700",
+    whiteSpace: "nowrap",
+    boxShadow: "0 4px 14px rgba(37,99,235,0.25)",
   },
 
   tableWrapper: {
     overflowX: "auto",
-    border: "1px solid #e2e8f0",
-    borderRadius: "8px",
   },
 
   table: {
     width: "100%",
-    borderCollapse: "collapse",
+    borderCollapse: "separate",
+    borderSpacing: 0,
+    minWidth: "1100px",
   },
 
   th: {
-    padding: "12px 16px",
-    background: "#f1f5f9",
-    fontWeight: "bold",
-    color: "#1e293b",
-    borderBottom: "2px solid #e2e8f0",
+    padding: "16px",
+    background: "#f8fafc",
+    fontWeight: "700",
+    color: "#334155",
+    borderBottom: "1px solid #e2e8f0",
     textAlign: "left",
     fontSize: "14px",
+    position: "sticky",
+    top: 0,
+    zIndex: 1,
   },
 
   thCenter: {
-    padding: "12px 16px",
-    background: "#f1f5f9",
-    fontWeight: "bold",
-    color: "#1e293b",
-    borderBottom: "2px solid #e2e8f0",
+    padding: "16px",
+    background: "#f8fafc",
+    fontWeight: "700",
+    color: "#334155",
+    borderBottom: "1px solid #e2e8f0",
     textAlign: "center",
     fontSize: "14px",
   },
 
   tr: {
-    borderBottom: "1px solid #f1f5f9",
-    transition: "background-color 0.2s",
+    transition: "0.2s ease",
   },
 
   td: {
-    padding: "12px 16px",
+    padding: "18px 16px",
     color: "#334155",
     fontSize: "14px",
     verticalAlign: "middle",
+    borderBottom: "1px solid #f1f5f9",
+    background: "#fff",
   },
 
   tdCenter: {
-    padding: "12px 16px",
+    padding: "18px 16px",
     textAlign: "center",
     verticalAlign: "middle",
     fontSize: "14px",
+    borderBottom: "1px solid #f1f5f9",
+    background: "#fff",
   },
 
   badge: {
-    padding: "4px 10px",
+    padding: "7px 14px",
     borderRadius: "999px",
     fontSize: "12px",
-    fontWeight: "bold",
-    display: "inline-block",
+    fontWeight: "700",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    minWidth: "90px",
   },
 
   fileLink: {
     display: "inline-flex",
     alignItems: "center",
-    padding: "4px 8px",
-    borderRadius: "4px",
-    border: "1px solid #e2e8f0",
-    background: "#f8fafc",
-    color: "#475569",
-    fontSize: "12px",
+    gap: 6,
+    padding: "8px 12px",
+    borderRadius: "10px",
+    border: "1px solid #dbeafe",
+    background: "#eff6ff",
+    color: "#1d4ed8",
+    fontSize: "13px",
     textDecoration: "none",
-    fontWeight: 500,
+    fontWeight: "600",
+    transition: "0.2s ease",
   },
 
   actionGroup: {
     display: "flex",
     justifyContent: "center",
-    gap: "6px",
-  },
-
-  actionBtn: {
-    padding: "6px 10px",
-    borderRadius: "6px",
-    border: "none",
-    fontSize: "12px",
-    fontWeight: "bold",
-    cursor: "pointer",
-    display: "flex",
-    alignItems: "center",
-    gap: 4,
-  },
-
-  approveBtn: {
-    background: "#22c55e",
-    color: "#fff",
-  },
-
-  rejectBtn: {
-    background: "#ef4444",
-    color: "#fff",
-  },
-
-  resetBtn: {
-    background: "#64748b",
-    color: "#fff",
-  },
-
-  pagination: {
-    marginTop: "20px",
-    display: "flex",
-    justifyContent: "center",
-    alignItems: "center",
+    flexWrap: "wrap",
     gap: "8px",
   },
 
+  actionBtn: {
+    padding: "10px 14px",
+    borderRadius: "12px",
+    border: "none",
+    fontSize: "13px",
+    fontWeight: "700",
+    cursor: "pointer",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    transition: "0.2s ease",
+    minWidth: "110px",
+  },
+
+  approveBtn: {
+    background: "linear-gradient(135deg, #22c55e, #16a34a)",
+    color: "#fff",
+    boxShadow: "0 6px 16px rgba(34,197,94,0.25)",
+  },
+
+  rejectBtn: {
+    background: "linear-gradient(135deg, #ef4444, #dc2626)",
+    color: "#fff",
+    boxShadow: "0 6px 16px rgba(239,68,68,0.25)",
+  },
+
+  resetBtn: {
+    background: "linear-gradient(135deg, #64748b, #475569)",
+    color: "#fff",
+    boxShadow: "0 6px 16px rgba(100,116,139,0.2)",
+  },
+
+  emptyBox: {
+    background: "#ffffff",
+    borderRadius: "24px",
+    padding: "60px 20px",
+    textAlign: "center",
+    border: "1px dashed #cbd5e1",
+    boxShadow: "0 8px 24px rgba(15,23,42,0.04)",
+  },
+
+  pagination: {
+    marginTop: "28px",
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+    gap: "10px",
+  },
+
   pageBtn: {
-    minWidth: "32px",
-    height: "32px",
-    padding: "0 8px",
-    borderRadius: "6px",
+    minWidth: "40px",
+    height: "40px",
+    padding: "0 12px",
+    borderRadius: "12px",
     border: "1px solid #cbd5e1",
-    background: "#fff",
+    background: "#ffffff",
     color: "#1e293b",
     cursor: "pointer",
-    fontSize: "13px",
+    fontSize: "14px",
+    fontWeight: "600",
   },
 
   pageBtnActive: {
     background: "#2563eb",
-    color: "#fff",
+    color: "#ffffff",
     border: "1px solid #2563eb",
+    boxShadow: "0 6px 16px rgba(37,99,235,0.25)",
   },
 
   pageBtnDisabled: {

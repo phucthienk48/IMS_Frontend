@@ -14,6 +14,7 @@ export default function Application() {
   const [editForm, setEditForm] = useState({});
   const [saving, setSaving] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
+  const [topics, setTopics] = useState([]);
 
   useEffect(() => {
     if (!id_user) {
@@ -31,7 +32,17 @@ export default function Application() {
       }
     };
 
+    const loadTopics = async () => {
+      try {
+        const res = await axios.get(`${API}/api/internship-topics`);
+        setTopics(res.data.data || []);
+      } catch (error) {
+        console.error("Lỗi lấy danh sách đề tài:", error);
+      }
+    };
+
     loadApplications();
+    loadTopics();
   }, [id_user]);
 
   // ── Xóa hồ sơ ──────────────────────────────────────────────────────────────
@@ -48,13 +59,14 @@ export default function Application() {
 
   const [createModal, setCreateModal] = useState(false);
   const [createForm, setCreateForm] = useState({
-    fullName: "",
+    fullName: user?.username || "",
     studentCode: "",
-    email: "",
+    email: user?.email || "",
     sdt: "",
     major: "",
     course: "",
     note: "",
+    topic: "",
   });
   const [createFiles, setCreateFiles] = useState({
     cvFile: null,
@@ -92,29 +104,51 @@ export default function Application() {
       const cvPath = await uploadFile(createFiles.cvFile);
       const transcriptPath = await uploadFile(createFiles.transcriptFile);
 
+      const postForm = { ...createForm };
+      if (!postForm.topic) {
+        delete postForm.topic;
+      }
+
       const res = await axios.post(`${API}/api/application`, {
-        ...createForm,
+        ...postForm,
         student: id_user,
         cvFile: cvPath,
         transcriptFile: transcriptPath,
       });
 
       const newApplication = res.data.data || res.data;
+      
+      // Populate topic details locally if topic is selected
+      if (newApplication.topic && typeof newApplication.topic === "string") {
+        const foundTopic = topics.find(t => t._id === newApplication.topic);
+        if (foundTopic) {
+          newApplication.topic = {
+            _id: foundTopic._id,
+            topicname: foundTopic.topicname,
+            department: foundTopic.department,
+            position: foundTopic.position,
+            status: foundTopic.status,
+            lecturer: foundTopic.lecturer
+          };
+        }
+      }
+
       setApplications((prev) => [newApplication, ...prev]);
       setCreateModal(false);
       setCreateForm({
-        fullName: "",
+        fullName: user?.username || "",
         studentCode: "",
-        email: "",
+        email: user?.email || "",
         sdt: "",
         major: "",
         course: "",
         note: "",
+        topic: "",
       });
       setCreateFiles({ cvFile: null, transcriptFile: null });
     } catch (error) {
       console.error(error);
-      alert("Tạo hồ sơ thất bại. Vui lòng thử lại.");
+      alert(error.response?.data?.message || "Tạo hồ sơ thất bại. Vui lòng thử lại.");
     } finally {
       setSaving(false);
     }
@@ -329,14 +363,51 @@ export default function Application() {
 
               {/* Card Body */}
               <div style={styles.cardBody}>
+                {item.topic ? (
+                  <>
+                    <InfoRow
+                      icon="bi-journal-text"
+                      label="Đề tài"
+                      value={item.topic.topicname}
+                    />
+                    <InfoRow
+                      icon="bi-person-badge-fill"
+                      label="Cán bộ hướng dẫn"
+                      value={item.topic.lecturer?.username || "Chưa có"}
+                    />
+                    <InfoRow
+                      icon="bi-briefcase-fill"
+                      label="Vị trí thực tập"
+                      value={item.topic.position}
+                    />
+                    <InfoRow
+                      icon="bi-building"
+                      label="Bộ môn"
+                      value={item.topic.department}
+                    />
+                  </>
+                ) : (
+                  <InfoRow
+                    icon="bi-journal-text"
+                    label="Đề tài"
+                    value={
+                      <span style={{ color: "#64748b", fontStyle: "italic", fontWeight: 500 }}>
+                        Hồ sơ tự do (Không có đề tài)
+                      </span>
+                    }
+                  />
+                )}
+
+                <div style={{ borderTop: "1px dashed #e2e8f0", margin: "8px 0" }} />
+
                 <InfoRow
                   icon="bi-envelope-fill"
-                  label="Email"
+                  label="Email liên hệ"
                   value={item.email}
                 />
                 <InfoRow
                   icon="bi-telephone-fill"
-                  label="SĐT"
+                  label="Số điện thoại"
                   value={item.sdt}
                 />
                 <InfoRow
@@ -510,6 +581,24 @@ export default function Application() {
                 />
               </div>
               <div style={{ marginTop: 12 }}>
+                <label style={styles.formLabel}>Đề tài thực tập</label>
+                <select
+                  name="topic"
+                  value={createForm.topic}
+                  onChange={handleCreateChange}
+                  style={styles.formInput}
+                >
+                  <option value="">-- Hồ sơ tự do (Không cần đề tài) --</option>
+                  {topics
+                    .filter((t) => t.status === "open")
+                    .map((t) => (
+                      <option key={t._id} value={t._id}>
+                        {t.topicname} - {t.lecturer?.username || "Cán bộ"} ({t.position})
+                      </option>
+                    ))}
+                </select>
+              </div>
+              <div style={{ marginTop: 12 }}>
                 <label style={styles.formLabel}>Ghi chú</label>
                 <textarea
                   name="note"
@@ -597,6 +686,24 @@ export default function Application() {
             </div>
 
             <div style={styles.editBody}>
+              {editModal.topic ? (
+                <div style={{ marginBottom: 16, padding: "12px 16px", background: "#eff6ff", borderRadius: 8, border: "1px solid #bfdbfe" }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: "#1e40af" }}>Đề tài đăng ký:</div>
+                  <div style={{ fontSize: 14, color: "#1e3a8a", marginTop: 2, fontWeight: 600 }}>
+                    {editModal.topic.topicname}
+                  </div>
+                  <div style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>
+                    Cán bộ hướng dẫn: <strong>{editModal.topic.lecturer?.username || "Chưa rõ"}</strong> | Vị trí: <strong>{editModal.topic.position}</strong>
+                  </div>
+                </div>
+              ) : (
+                <div style={{ marginBottom: 16, padding: "12px 16px", background: "#f8fafc", borderRadius: 8, border: "1px solid #e2e8f0" }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: "#475569" }}>Loại hồ sơ:</div>
+                  <div style={{ fontSize: 14, color: "#334155", marginTop: 2, fontStyle: "italic" }}>
+                    Hồ sơ tự do (Không đăng ký đề tài)
+                  </div>
+                </div>
+              )}
               <div style={styles.formGrid}>
                 <FormField
                   label="Họ và tên"

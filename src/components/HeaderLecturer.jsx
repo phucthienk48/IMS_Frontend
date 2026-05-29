@@ -40,7 +40,7 @@ export default function Header() {
         </Link>
 
         <Link
-          to="/topics"
+          to="/lecturer/topics"
           style={{
             ...styles.link,
             ...(isActive("/topics") && styles.activeLink),
