@@ -1,8 +1,7 @@
-import { Link, useNavigate, useLocation } from "react-router-dom";
+import { NavLink, useNavigate } from "react-router-dom";
 
 export default function Header() {
   const navigate = useNavigate();
-  const location = useLocation();
 
   const user = JSON.parse(localStorage.getItem("user"));
 
@@ -10,13 +9,7 @@ export default function Header() {
   const handleLogout = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
-
     navigate("/login");
-  };
-
-  // active menu
-  const isActive = (path) => {
-    return location.pathname === path;
   };
 
   return (
@@ -29,67 +22,66 @@ export default function Header() {
 
       {/* MENU */}
       <nav style={styles.menu}>
-        <Link
+        <NavLink
           to="/"
-          style={{
+          style={({ isActive }) => ({
             ...styles.link,
-            ...(isActive("/") && styles.activeLink),
-          }}
+            ...(isActive ? styles.activeLink : {}),
+          })}
         >
           Home
-        </Link>
+        </NavLink>
 
-        <Link
+        <NavLink
           to="/topics"
-          style={{
+          style={({ isActive }) => ({
             ...styles.link,
-            ...(isActive("/topics") && styles.activeLink),
-          }}
+            ...(isActive ? styles.activeLink : {}),
+          })}
         >
           Đề tài
-        </Link>
+        </NavLink>
 
-        <Link
+        <NavLink
           to="/application"
-          style={{
+          style={({ isActive }) => ({
             ...styles.link,
-            ...(isActive("/internship") && styles.activeLink),
-          }}
+            ...(isActive ? styles.activeLink : {}),
+          })}
         >
           Thực tập
-        </Link>
+        </NavLink>
 
-        <Link
-          to="/notifications"
-          style={{
+        {/* <NavLink
+          to="/profile"
+          title="Hồ sơ"
+          style={({ isActive }) => ({
             ...styles.link,
-            ...(isActive("/notifications") && styles.activeLink),
-          }}
+            ...(isActive ? styles.activeLink : {}),
+          })}
         >
-          Thông báo
-        </Link>
-
+          <i className="bi bi-person-circle" style={styles.profileIcon}></i>
+        </NavLink> */}
       </nav>
 
       {/* ACTION */}
-      <div>
+      <div style={styles.actionArea}>
         {!user ? (
-          <button
-            style={styles.loginBtn}
-            onClick={() => navigate("/login")}
-          >
+          <button style={styles.loginBtn} onClick={() => navigate("/login")}>
             Đăng nhập
           </button>
         ) : (
           <div style={styles.userBox}>
-            <span style={styles.username}>
-              Xin chào, {user.username}
-            </span>
-
-            <button
-              style={styles.logoutBtn}
-              onClick={handleLogout}
-            >
+            <div style={styles.userInfo}>
+              <span style={styles.username}>{user.username}</span>
+              <NavLink to="/profile" title="Hồ sơ" style={styles.profileLink}>
+                <i
+                  className="bi bi-person-circle"
+                  style={styles.profileIcon}
+                ></i>
+              </NavLink>
+            </div>
+            <button style={styles.logoutBtn} onClick={handleLogout}>
               Đăng xuất
             </button>
           </div>
@@ -150,6 +142,38 @@ const styles = {
     background: "#2563eb",
   },
 
+  actionArea: {
+    display: "flex",
+    alignItems: "center",
+    gap: 12,
+  },
+
+  userBox: {
+    display: "flex",
+    alignItems: "center",
+    gap: 12,
+    background: "rgba(255,255,255,0.08)",
+    padding: "10px 14px",
+    borderRadius: 14,
+  },
+
+  userInfo: {
+    display: "flex",
+    flexDirection: "column",
+    gap: 2,
+    color: "#fff",
+  },
+
+  profileLink: {
+    color: "#dbeafe",
+    textDecoration: "none",
+    fontSize: 14,
+  },
+
+  profileIcon: {
+    fontSize: 18,
+  },
+
   loginBtn: {
     padding: "10px 18px",
     border: "none",
@@ -160,12 +184,6 @@ const styles = {
 
     fontWeight: "bold",
     cursor: "pointer",
-  },
-
-  userBox: {
-    display: "flex",
-    alignItems: "center",
-    gap: 12,
   },
 
   username: {

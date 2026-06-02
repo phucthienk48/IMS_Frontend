@@ -27,7 +27,10 @@ export default function LecturerApplication() {
   const [topics, setTopics] = useState([]);
   const fetchTopics = async () => {
     try {
-      const res = await fetch("http://localhost:5000/api/internship-topics");
+      const lecturerId = user._id || user.id;
+      const res = await fetch(
+        `http://localhost:5000/api/internship-topics/lecturer/${lecturerId}`,
+      );
       const data = await res.json();
       setTopics(data.data || []);
     } catch (err) {
@@ -101,8 +104,12 @@ export default function LecturerApplication() {
     rejected: applications.filter((app) => app.status === "từ chối").length,
   };
 
-  // Lọc hồ sơ
+  // Lọc hồ sơ - chỉ hiển thị hồ sơ của đề tài của lecturer hoặc hồ sơ tự do
   const filteredApps = applications.filter((app) => {
+    const appTopicId = app.topic && (app.topic._id || app.topic);
+    const isInLecturerTopic = topics.some((t) => t._id === appTopicId);
+    const isFreeApp = !app.topic;
+
     const matchSearch =
       app.fullName.toLowerCase().includes(search.toLowerCase()) ||
       app.studentCode.toLowerCase().includes(search.toLowerCase()) ||
@@ -111,11 +118,11 @@ export default function LecturerApplication() {
 
     const matchStatus = statusFilter === "all" || app.status === statusFilter;
 
-    return matchSearch && matchStatus;
+    return (isInLecturerTopic || isFreeApp) && matchSearch && matchStatus;
   });
 
-  // Nhóm hồ sơ theo đề tài
-  // Build grouped list based on topics collection so topics with 0 apps still appear
+  // Nhóm hồ sơ theo đề tài của lecturer
+  // Build grouped list based on lecturer's topics
   const freeApps = [];
   const groupedTopicList = topics.map((t) => {
     const appsForTopic = filteredApps.filter((app) => {
@@ -126,11 +133,9 @@ export default function LecturerApplication() {
     return { topic: t, apps: appsForTopic };
   });
 
-  // apps that have no topic or topic not in topics list
+  // apps that don't have a topic (free applications)
   filteredApps.forEach((app) => {
-    const appTopicId = app.topic && (app.topic._id || app.topic);
-    const found = topics.find((t) => t._id === appTopicId);
-    if (!app.topic || !found) freeApps.push(app);
+    if (!app.topic) freeApps.push(app);
   });
 
   return (
@@ -221,17 +226,12 @@ export default function LecturerApplication() {
         <div>
           {/* Nhóm theo đề tài */}
           {groupedTopicList.map(({ topic, apps }) => {
-            const isMyTopic =
-              topic.lecturer?._id === (user._id || user.id) ||
-              topic.lecturer === (user._id || user.id);
             return (
               <div key={topic._id} style={styles.groupWrapper}>
                 <div
                   style={{
                     ...styles.groupHeader,
-                    borderLeft: isMyTopic
-                      ? "6px solid #16a34a"
-                      : "6px solid #2563eb",
+                    borderLeft: "6px solid #16a34a",
                   }}
                 >
                   <div style={{ flex: 1 }}>
@@ -241,9 +241,7 @@ export default function LecturerApplication() {
                         style={{ marginRight: 8, color: "#1e3a8a" }}
                       />
                       Đề tài: {topic.topicname}
-                      {isMyTopic && (
-                        <span style={styles.myTopicBadge}>Đề tài của tôi</span>
-                      )}
+                      <span style={styles.myTopicBadge}>Đề tài của tôi</span>
                     </h3>
                     <div style={styles.groupTopicMeta}>
                       <span>
