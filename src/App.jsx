@@ -22,6 +22,7 @@ import AdminInternshiptopic from "./pages/Admin/AdminInternshiptopic";
 import HomeLecturer from "./pages/Lecturer/HomeLecturer";
 import LecturerApplication from "./pages/Lecturer/LecturerApplication";
 import LecturerIntershiptopic from "./pages/Lecturer/LecturerIntershiptopic";
+import LecturerStudent from "./pages/Lecturer/LecturerStudent";
 
 function App() {
   return (
@@ -51,6 +52,7 @@ function App() {
             path="/lecturer/applications"
             element={<LecturerApplication />}
           />
+          <Route path="/lecturer/students" element={<LecturerStudent />} />
         </Route>
       </Routes>
     </BrowserRouter>

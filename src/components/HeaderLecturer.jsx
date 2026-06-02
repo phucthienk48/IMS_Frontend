@@ -43,7 +43,7 @@ export default function Header() {
           to="/lecturer/topics"
           style={{
             ...styles.link,
-            ...(isActive("/topics") && styles.activeLink),
+            ...(isActive("/lecturer/topics") && styles.activeLink),
           }}
         >
           Đề tài
@@ -60,10 +60,10 @@ export default function Header() {
         </Link>
 
         <Link
-          to="/notifications"
+          to="/lecturer/students"
           style={{
             ...styles.link,
-            ...(isActive("/notifications") && styles.activeLink),
+            ...(isActive("/lecturer/students") && styles.activeLink),
           }}
         >
           Sinh viên

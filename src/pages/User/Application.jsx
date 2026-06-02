@@ -4,6 +4,12 @@ import axios from "axios";
 
 const API = "http://localhost:5000";
 
+const REPORT_STATUS_STYLE = {
+  "chờ duyệt": { background: "#fef3c7", color: "#92400e", border: "1px solid #fde68a" },
+  "đã duyệt": { background: "#dcfce7", color: "#166534", border: "1px solid #bbf7d0" },
+  "cần chỉnh sửa": { background: "#fee2e2", color: "#991b1b", border: "1px solid #fecaca" },
+};
+
 export default function Application() {
   const navigate = useNavigate();
   const user = JSON.parse(localStorage.getItem("user"));
@@ -15,6 +21,15 @@ export default function Application() {
   const [saving, setSaving] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [topics, setTopics] = useState([]);
+
+  // ── Nhật ký thực tập ─────────────────────────────────────────────────────────
+  const [reportModal, setReportModal] = useState(null); // application đang xem nhật ký
+  const [reports, setReports] = useState([]); // danh sách nhật ký của application đang mở
+  const [reportsLoading, setReportsLoading] = useState(false);
+  const [newReportForm, setNewReportForm] = useState({ week: "", content: "" });
+  const [reportSaving, setReportSaving] = useState(false);
+  const [editReportId, setEditReportId] = useState(null);
+  const [editReportContent, setEditReportContent] = useState("");
 
   useEffect(() => {
     if (!id_user) {
@@ -44,6 +59,68 @@ export default function Application() {
     loadApplications();
     loadTopics();
   }, [id_user]);
+
+  // ── Nhật ký thực tập ─────────────────────────────────────────────────────────
+  const openReportModal = async (application) => {
+    setReportModal(application);
+    setReportsLoading(true);
+    try {
+      const res = await axios.get(`${API}/api/weekly-reports/application/${application._id}`);
+      setReports(res.data.data || []);
+    } catch (err) {
+      console.error("Lỗi tải nhật ký:", err);
+      setReports([]);
+    } finally {
+      setReportsLoading(false);
+    }
+  };
+
+  const handleCreateReport = async () => {
+    if (!newReportForm.week || !newReportForm.content.trim()) {
+      return alert("Vui lòng chọn số tuần và nhập nội dung nhật ký.");
+    }
+    setReportSaving(true);
+    try {
+      const res = await axios.post(`${API}/api/weekly-reports`, {
+        student: id_user,
+        application: reportModal._id,
+        week: parseInt(newReportForm.week),
+        content: newReportForm.content.trim(),
+      });
+      setReports((prev) => [...prev, res.data.data].sort((a, b) => a.week - b.week));
+      setNewReportForm({ week: "", content: "" });
+    } catch (err) {
+      alert(err.response?.data?.message || "Tạo nhật ký thất bại");
+    } finally {
+      setReportSaving(false);
+    }
+  };
+
+  const handleUpdateReportContent = async (id) => {
+    setReportSaving(true);
+    try {
+      const res = await axios.patch(`${API}/api/weekly-reports/${id}/content`, {
+        content: editReportContent,
+      });
+      setReports((prev) => prev.map((r) => (r._id === id ? res.data.data : r)));
+      setEditReportId(null);
+      setEditReportContent("");
+    } catch (err) {
+      alert(err.response?.data?.message || "Cập nhật thất bại");
+    } finally {
+      setReportSaving(false);
+    }
+  };
+
+  const handleDeleteReport = async (id) => {
+    if (!window.confirm("Xóa nhật ký tuần này?")) return;
+    try {
+      await axios.delete(`${API}/api/weekly-reports/${id}`);
+      setReports((prev) => prev.filter((r) => r._id !== id));
+    } catch (err) {
+      alert(err.response?.data?.message || "Xóa thất bại");
+    }
+  };
 
   // ── Xóa hồ sơ ──────────────────────────────────────────────────────────────
   const handleDelete = async (id) => {
@@ -398,6 +475,39 @@ export default function Application() {
                   />
                 )}
 
+                {item.status === "đã duyệt" && (
+                  <>
+                    <div style={{ borderTop: "1px dashed #e2e8f0", margin: "8px 0" }} />
+                    <div style={{ padding: "10px 14px", background: "#f8fafc", borderRadius: "12px", border: "1px solid #e2e8f0", marginBottom: "8px" }}>
+                      <div style={{ fontWeight: "700", color: "#1e3a8a", fontSize: "13px", marginBottom: "8px", display: "flex", alignItems: "center", gap: 4 }}>
+                        <i className="bi bi-patch-check-fill text-success" /> KẾT QUẢ THỰC TẬP:
+                      </div>
+                      <InfoRow
+                        icon="bi-activity"
+                        label="Tiến độ"
+                        value={
+                          <span style={{
+                            fontWeight: "600",
+                            color: item.internshipStatus === "đã hoàn thành" ? "#16a34a" : item.internshipStatus === "tạm dừng" ? "#dc2626" : "#0284c7"
+                          }}>
+                            {item.internshipStatus === "đã hoàn thành" ? "Đã hoàn thành" : item.internshipStatus === "tạm dừng" ? "Tạm dừng" : "Đang thực tập"}
+                          </span>
+                        }
+                      />
+                      <InfoRow
+                        icon="bi-award-fill"
+                        label="Điểm số"
+                        value={item.score !== null && item.score !== undefined ? <strong style={{ color: "#d97706" }}>{item.score} / 10</strong> : <span style={{ color: "#94a3b8", fontStyle: "italic" }}>Chưa chấm điểm</span>}
+                      />
+                      <InfoRow
+                        icon="bi-chat-left-text-fill"
+                        label="Nhận xét"
+                        value={item.feedback || <span style={{ color: "#94a3b8", fontStyle: "italic" }}>Chưa có nhận xét</span>}
+                      />
+                    </div>
+                  </>
+                )}
+
                 <div style={{ borderTop: "1px dashed #e2e8f0", margin: "8px 0" }} />
 
                 <InfoRow
@@ -480,6 +590,15 @@ export default function Application() {
                 >
                   <i className="bi bi-pencil-fill" /> Sửa
                 </button>
+                {item.status === "đã duyệt" && (
+                  <button
+                    style={{ ...styles.actionBtn, ...styles.reportBtn }}
+                    onClick={() => openReportModal(item)}
+                    title="Xem và ghi nhật ký thực tập hàng tuần"
+                  >
+                    <i className="bi bi-journal-text" /> Nhật ký
+                  </button>
+                )}
                 <button
                   style={{ ...styles.actionBtn, ...styles.deleteBtn }}
                   onClick={() => setDeleteConfirm(item._id)}
@@ -777,6 +896,144 @@ export default function Application() {
                   </>
                 )}
               </button>
+            </div>
+          </div>
+        </ModalOverlay>
+      )}
+
+      {/* ── Modal Nhật ký thực tập ── */}
+      {reportModal && (
+        <ModalOverlay onClose={() => { setReportModal(null); setEditReportId(null); }}>
+          <div style={{ ...styles.editBox, maxWidth: 700 }}>
+            <div style={styles.editHeader}>
+              <div>
+                <h4 style={{ margin: 0, color: "#1e3a8a", display: "flex", alignItems: "center", gap: 8 }}>
+                  <i className="bi bi-journal-text" /> Nhật ký thực tập hàng tuần
+                </h4>
+                <p style={{ margin: "4px 0 0", fontSize: 12, color: "#64748b" }}>
+                  {reportModal.fullName} — {reportModal.topic?.topicname || "Hồ sơ tự do"}
+                </p>
+              </div>
+              <button style={styles.closeBtn} onClick={() => { setReportModal(null); setEditReportId(null); }}>✕</button>
+            </div>
+
+            <div style={{ ...styles.editBody, maxHeight: "72vh", overflowY: "auto" }}>
+              {/* Form tạo nhật ký mới */}
+              <div style={styles.reportCreateBox}>
+                <h5 style={styles.reportSectionTitle}><i className="bi bi-plus-circle-fill" style={{ color: "#2563eb" }} /> Thêm nhật ký tuần mới</h5>
+                <div style={{ display: "grid", gridTemplateColumns: "120px 1fr", gap: 10, alignItems: "flex-start" }}>
+                  <div>
+                    <label style={styles.formLabel}>Số tuần</label>
+                    <input
+                      type="number"
+                      min="1"
+                      max="52"
+                      style={styles.formInput}
+                      placeholder="VD: 1"
+                      value={newReportForm.week}
+                      onChange={(e) => setNewReportForm({ ...newReportForm, week: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <label style={styles.formLabel}>Nội dung công việc đã thực hiện</label>
+                    <textarea
+                      style={{ ...styles.formInput, resize: "vertical", minHeight: 80 }}
+                      placeholder="Mô tả công việc đã làm trong tuần, kết quả đạt được, khó khăn gặp phải..."
+                      value={newReportForm.content}
+                      onChange={(e) => setNewReportForm({ ...newReportForm, content: e.target.value })}
+                    />
+                  </div>
+                </div>
+                <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 10 }}>
+                  <button
+                    style={{ ...styles.actionBtn, flex: "none", padding: "9px 20px", ...styles.saveBtn }}
+                    onClick={handleCreateReport}
+                    disabled={reportSaving}
+                  >
+                    <i className="bi bi-save-fill" /> {reportSaving ? "Đang lưu..." : "Nộp nhật ký"}
+                  </button>
+                </div>
+              </div>
+
+              {/* Danh sách nhật ký */}
+              <h5 style={{ ...styles.reportSectionTitle, marginTop: 20 }}>
+                <i className="bi bi-list-check" style={{ color: "#2563eb" }} /> Lịch sử nhật ký ({reports.length} tuần)
+              </h5>
+
+              {reportsLoading ? (
+                <p style={{ color: "#64748b", textAlign: "center", padding: 20 }}>⏳ Đang tải nhật ký...</p>
+              ) : reports.length === 0 ? (
+                <div style={{ textAlign: "center", color: "#94a3b8", padding: "20px 0", fontStyle: "italic" }}>
+                  Chưa có nhật ký nào được ghi nhận.
+                </div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                  {reports.map((report) => (
+                    <div key={report._id} style={styles.reportCard}>
+                      <div style={styles.reportCardHeader}>
+                        <span style={styles.reportWeekBadge}>Tuần {report.week}</span>
+                        <span style={{ ...styles.reportStatusBadge, ...REPORT_STATUS_STYLE[report.status] }}>
+                          {report.status}
+                        </span>
+                        <span style={{ marginLeft: "auto", fontSize: 11, color: "#94a3b8" }}>
+                          {new Date(report.createdAt).toLocaleDateString("vi-VN")}
+                        </span>
+                      </div>
+
+                      {/* Nội dung sinh viên */}
+                      {editReportId === report._id ? (
+                        <div style={{ marginTop: 8 }}>
+                          <textarea
+                            style={{ ...styles.formInput, resize: "vertical", minHeight: 80 }}
+                            value={editReportContent}
+                            onChange={(e) => setEditReportContent(e.target.value)}
+                          />
+                          <div style={{ display: "flex", gap: 8, marginTop: 8, justifyContent: "flex-end" }}>
+                            <button style={styles.cancelBtn} onClick={() => setEditReportId(null)}>Hủy</button>
+                            <button
+                              style={{ ...styles.actionBtn, flex: "none", padding: "7px 16px", ...styles.saveBtn }}
+                              onClick={() => handleUpdateReportContent(report._id)}
+                              disabled={reportSaving}
+                            >
+                              {reportSaving ? "Đang lưu..." : "Lưu"}
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <p style={styles.reportContent}>{report.content}</p>
+                      )}
+
+                      {/* Nhận xét giảng viên */}
+                      {report.feedback && (
+                        <div style={styles.reportFeedbackBox}>
+                          <span style={{ fontWeight: 700, color: "#1e40af", fontSize: 12 }}>
+                            <i className="bi bi-chat-left-quote-fill me-1" /> Nhận xét giảng viên:
+                          </span>
+                          <p style={{ margin: "4px 0 0", fontSize: 13, color: "#334155" }}>{report.feedback}</p>
+                        </div>
+                      )}
+
+                      {/* Nút sửa/xóa (chỉ khi chưa duyệt) */}
+                      {report.status !== "đã duyệt" && (
+                        <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+                          <button
+                            style={{ ...styles.actionBtn, flex: "none", padding: "5px 12px", ...styles.editBtn, fontSize: 12 }}
+                            onClick={() => { setEditReportId(report._id); setEditReportContent(report.content); }}
+                          >
+                            <i className="bi bi-pencil-fill" /> Sửa
+                          </button>
+                          <button
+                            style={{ ...styles.actionBtn, flex: "none", padding: "5px 12px", ...styles.deleteBtn, fontSize: 12 }}
+                            onClick={() => handleDeleteReport(report._id)}
+                          >
+                            <i className="bi bi-trash3-fill" /> Xóa
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </ModalOverlay>
@@ -1095,6 +1352,78 @@ const styles = {
     background: "#fee2e2",
     color: "#991b1b",
     border: "1px solid #fecaca",
+  },
+
+  reportBtn: {
+    background: "#eff6ff",
+    color: "#1d4ed8",
+    border: "1px solid #bfdbfe",
+  },
+
+  reportCreateBox: {
+    background: "#f8fafc",
+    border: "1px solid #e2e8f0",
+    borderRadius: 12,
+    padding: "16px 18px",
+    marginBottom: 4,
+  },
+
+  reportSectionTitle: {
+    fontSize: 14,
+    fontWeight: 700,
+    color: "#1e3a8a",
+    margin: "0 0 12px",
+    display: "flex",
+    alignItems: "center",
+    gap: 6,
+  },
+
+  reportCard: {
+    background: "#fff",
+    border: "1px solid #e2e8f0",
+    borderRadius: 12,
+    padding: "14px 16px",
+    boxShadow: "0 2px 6px rgba(0,0,0,0.04)",
+  },
+
+  reportCardHeader: {
+    display: "flex",
+    alignItems: "center",
+    gap: 10,
+    marginBottom: 8,
+    flexWrap: "wrap",
+  },
+
+  reportWeekBadge: {
+    background: "linear-gradient(135deg, #2563eb, #1d4ed8)",
+    color: "#fff",
+    fontSize: 12,
+    fontWeight: 700,
+    padding: "3px 10px",
+    borderRadius: 999,
+  },
+
+  reportStatusBadge: {
+    fontSize: 11,
+    fontWeight: 700,
+    padding: "3px 9px",
+    borderRadius: 999,
+  },
+
+  reportContent: {
+    fontSize: 13,
+    color: "#334155",
+    lineHeight: 1.6,
+    whiteSpace: "pre-wrap",
+    margin: 0,
+  },
+
+  reportFeedbackBox: {
+    marginTop: 10,
+    background: "#eff6ff",
+    border: "1px solid #bfdbfe",
+    borderRadius: 8,
+    padding: "10px 12px",
   },
 
   saveBtn: {
