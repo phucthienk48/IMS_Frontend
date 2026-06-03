@@ -1,8 +1,7 @@
-import { Link, useNavigate, useLocation } from "react-router-dom";
+import { NavLink, useNavigate } from "react-router-dom";
 
-export default function Header() {
+export default function HeaderLecturer() {
   const navigate = useNavigate();
-  const location = useLocation();
 
   const user = JSON.parse(localStorage.getItem("user"));
 
@@ -10,85 +9,84 @@ export default function Header() {
   const handleLogout = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
-
     navigate("/login");
-  };
-
-  // active menu
-  const isActive = (path) => {
-    return location.pathname === path;
   };
 
   return (
     <header style={styles.header}>
       {/* LOGO */}
-      <div style={styles.logo} onClick={() => navigate("/")}>
+      <div style={styles.logo} onClick={() => navigate("/lecturer")}>
         <i className="bi bi-mortarboard-fill"></i>
         <span>IMS SYSTEM</span>
       </div>
 
       {/* MENU */}
       <nav style={styles.menu}>
-        <Link
+        <NavLink
           to="/lecturer"
-          style={{
+          style={({ isActive }) => ({
             ...styles.link,
-            ...(isActive("/lecturer") && styles.activeLink),
-          }}
+            ...(isActive ? styles.activeLink : {}),
+          })}
         >
           Home
-        </Link>
+        </NavLink>
 
-        <Link
+        <NavLink
           to="/lecturer/topics"
-          style={{
+          style={({ isActive }) => ({
             ...styles.link,
-            ...(isActive("/lecturer/topics") && styles.activeLink),
-          }}
+            ...(isActive ? styles.activeLink : {}),
+          })}
         >
           Đề tài
-        </Link>
+        </NavLink>
 
-        <Link
+        <NavLink
           to="/lecturer/applications"
-          style={{
+          style={({ isActive }) => ({
             ...styles.link,
-            ...(isActive("/lecturer/applications") && styles.activeLink),
-          }}
+            ...(isActive ? styles.activeLink : {}),
+          })}
         >
           Thực tập
-        </Link>
+        </NavLink>
 
-        <Link
+        <NavLink
           to="/lecturer/students"
-          style={{
+          style={({ isActive }) => ({
             ...styles.link,
-            ...(isActive("/lecturer/students") && styles.activeLink),
-          }}
+            ...(isActive ? styles.activeLink : {}),
+          })}
         >
           Sinh viên
-        </Link>
+        </NavLink>
+
+      
       </nav>
 
       {/* ACTION */}
-      <div>
+      <div style={styles.actionArea}>
         {!user ? (
-          <button
-            style={styles.loginBtn}
-            onClick={() => navigate("/login")}
-          >
+          <button style={styles.loginBtn} onClick={() => navigate("/login")}>
             Đăng nhập
           </button>
         ) : (
           <div style={styles.userBox}>
-            <span style={styles.username}>
-              Xin chào, {user.username}
-            </span>
-
-            <button
-              style={styles.logoutBtn}
-              onClick={handleLogout}
-            >
+            <div style={styles.userInfo}>
+              <span style={styles.username}>{user.username}</span>
+              <NavLink
+                to="/lecturer/profile"
+                title="Hồ sơ"
+                style={styles.profileLink}
+              >
+                <i
+                  className="bi bi-person-circle"
+                  style={styles.profileIcon}
+                ></i>
+              </NavLink>
+            </div>
+            <button style={styles.logoutBtn} onClick={handleLogout}>
               Đăng xuất
             </button>
           </div>
@@ -139,14 +137,42 @@ const styles = {
     fontSize: 18,
     fontWeight: 500,
 
-    padding: "8px 8px",
-    borderRadius: 8,
+    padding: "8px 10px",
+    borderRadius: 10,
 
     transition: "0.3s",
   },
 
   activeLink: {
-    background: "#2563eb",
+    background: "rgba(255,255,255,0.12)",
+  },
+
+  actionArea: {
+    display: "flex",
+    alignItems: "center",
+    gap: 12,
+  },
+
+  userBox: {
+    display: "flex",
+    alignItems: "center",
+    gap: 12,
+  },
+
+  userInfo: {
+    display: "flex",
+    flexDirection: "column",
+    gap: 2,
+  },
+
+  profileLink: {
+    color: "#dbeafe",
+    textDecoration: "none",
+    fontSize: 14,
+  },
+
+  profileIcon: {
+    fontSize: 18,
   },
 
   loginBtn: {
@@ -159,12 +185,6 @@ const styles = {
 
     fontWeight: "bold",
     cursor: "pointer",
-  },
-
-  userBox: {
-    display: "flex",
-    alignItems: "center",
-    gap: 12,
   },
 
   username: {

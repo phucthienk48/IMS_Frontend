@@ -8,7 +8,7 @@ import LecturerLayout from "./layouts/LecturerLayout";
 import Home from "./pages/User/Home";
 import Login from "./pages/auth/Login";
 import Register from "./pages/auth/Register";
-// import Profile from "./pages/auth/Profile";
+import Profile from "./pages/Profile";
 import Application from "./pages/User/Application";
 import Intershiptopic from "./pages/User/Intershiptopic";
 import InternshipResult from "./pages/User/InternshipResult";
@@ -35,7 +35,7 @@ function App() {
           <Route path="/" element={<Home />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
-          {/* <Route path="/profile" element={<Profile />} /> */}
+          <Route path="/profile" element={<Profile />} />
           <Route path="/topics" element={<Intershiptopic />} />
           <Route path="/application" element={<Application />} />
           <Route path="/internship-result" element={<InternshipResult />} />
@@ -47,6 +47,7 @@ function App() {
           <Route path="/admin/students" element={<AdminStudent />} />
           <Route path="/admin/internship" element={<AdminInternshiptopic />} />
           <Route path="/admin/application" element={<AdminApplication />} />
+          <Route path="/admin/profile" element={<Profile />} />
         </Route>
 
         <Route element={<LecturerLayout />}>
@@ -57,6 +58,7 @@ function App() {
             element={<LecturerApplication />}
           />
           <Route path="/lecturer/students" element={<LecturerStudent />} />
+          <Route path="/lecturer/profile" element={<Profile />} />
         </Route>
       </Routes>
     </BrowserRouter>
