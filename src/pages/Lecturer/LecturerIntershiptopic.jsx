@@ -4,13 +4,13 @@ const API_BASE = "http://localhost:5000/api/internship-topics";
 
 export default function LecturerIntershiptopic() {
   const user = JSON.parse(localStorage.getItem("user")) || {};
-  // Hỗ trợ cả _id và id
   const lecturerId = user._id || user.id;
 
   const [topics, setTopics] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [editingId, setEditingId] = useState(null);
+  const [showCreateForm, setShowCreateForm] = useState(false);
   const [form, setForm] = useState({
     department: "",
     position: "",
@@ -65,10 +65,10 @@ export default function LecturerIntershiptopic() {
       startday: topic.startday.split("T")[0],
       endday: topic.endday.split("T")[0],
     });
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  const handleCancel = () => {
-    setEditingId(null);
+  const resetForm = () => {
     setForm({
       department: "",
       position: "",
@@ -81,6 +81,18 @@ export default function LecturerIntershiptopic() {
     });
   };
 
+  const handleCancel = () => {
+    setEditingId(null);
+    setShowCreateForm(false);
+    resetForm();
+  };
+
+  const handleOpenCreate = () => {
+    setEditingId(null);
+    setShowCreateForm(true);
+    resetForm();
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!lecturerId) {
@@ -89,12 +101,8 @@ export default function LecturerIntershiptopic() {
     }
 
     if (editingId) {
-      // Chế độ cập nhật
       try {
-        const payload = {
-          ...form,
-          lecturer: lecturerId,
-        };
+        const payload = { ...form, lecturer: lecturerId };
         const res = await fetch(`${API_BASE}/${editingId}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
@@ -115,13 +123,8 @@ export default function LecturerIntershiptopic() {
         alert(err.message || "Không thể cập nhật đề tài.");
       }
     } else {
-      // Chế độ tạo mới
       try {
-        const payload = {
-          ...form,
-          lecturer: lecturerId,
-          status: "open",
-        };
+        const payload = { ...form, lecturer: lecturerId, status: "open" };
         const res = await fetch(API_BASE, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -130,16 +133,7 @@ export default function LecturerIntershiptopic() {
         const data = await res.json();
         if (!res.ok) throw new Error(data.message || "Tạo đề tài thất bại");
         setTopics((prev) => [data.data, ...prev]);
-        setForm({
-          department: "",
-          position: "",
-          topicname: "",
-          description: "",
-          requirement: "",
-          quantity: 1,
-          startday: "",
-          endday: "",
-        });
+        handleCancel();
         alert("Đã tạo đề tài mới thành công.");
       } catch (err) {
         console.error(err);
@@ -151,9 +145,7 @@ export default function LecturerIntershiptopic() {
   const handleDelete = async (id) => {
     if (!window.confirm("Bạn có muốn xoá đề tài này?")) return;
     try {
-      const res = await fetch(`${API_BASE}/${id}`, {
-        method: "DELETE",
-      });
+      const res = await fetch(`${API_BASE}/${id}`, { method: "DELETE" });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Xoá thất bại");
       setTopics((prev) => prev.filter((topic) => topic._id !== id));
@@ -175,474 +167,929 @@ export default function LecturerIntershiptopic() {
 
   if (loading) {
     return (
-      <div style={{ padding: 20 }}>
-        <p>⏳ Đang tải đề tài của bạn...</p>
-        <p style={{ fontSize: "12px", color: "#999", marginTop: "10px" }}>
-          Giảng viên ID: {lecturerId || "Không tìm thấy"}
-        </p>
+      <div style={styles.loadingWrapper}>
+        <div style={styles.loadingSpinner}></div>
+        <p style={styles.loadingText}>Đang tải đề tài...</p>
       </div>
     );
   }
 
   return (
-    <div style={styles.page}>
-      <div style={styles.topSection}>
-        <div>
-          <h2 style={styles.title}>Đề tài của giảng viên</h2>
-          <p style={styles.subtitle}>
-            Tạo mới, xem và quản lý đề tài thực tập do bạn đề xuất.
-          </p>
+    <>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+        .lit-page * { font-family: 'Inter', sans-serif; box-sizing: border-box; }
+
+        .lit-row:hover td { background: #f8faff !important; }
+
+        .lit-edit-btn:hover {
+          background: linear-gradient(135deg, #2563eb, #1d4ed8) !important;
+          transform: translateY(-1px);
+          box-shadow: 0 8px 20px rgba(37,99,235,0.35) !important;
+        }
+        .lit-delete-btn:hover {
+          background: linear-gradient(135deg, #dc2626, #b91c1c) !important;
+          transform: translateY(-1px);
+          box-shadow: 0 8px 20px rgba(220,38,38,0.35) !important;
+        }
+
+        .lit-input:focus, .lit-textarea:focus {
+          border-color: #3b82f6 !important;
+          background: #fff !important;
+          box-shadow: 0 0 0 3px rgba(59,130,246,0.12);
+        }
+
+        .lit-search-input:focus {
+          outline: none;
+          border-color: #3b82f6;
+          background: #fff;
+        }
+
+        .lit-spinner {
+          width: 44px;
+          height: 44px;
+          border: 4px solid #e0e7ff;
+          border-top-color: #3b82f6;
+          border-radius: 50%;
+          animation: spin 0.75s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .lit-badge-open {
+          display: inline-flex; align-items: center; gap: 5px;
+          padding: 5px 12px; border-radius: 999px;
+          color: #166534; background: #dcfce7;
+          font-weight: 700; font-size: 12px;
+          border: 1px solid #bbf7d0;
+        }
+        .lit-badge-closed {
+          display: inline-flex; align-items: center; gap: 5px;
+          padding: 5px 12px; border-radius: 999px;
+          color: #991b1b; background: #fee2e2;
+          font-weight: 700; font-size: 12px;
+          border: 1px solid #fecaca;
+        }
+      `}</style>
+
+      <div className="lit-page" style={styles.page}>
+        {/* TOP HEADER SECTION */}
+        <div style={styles.topSection}>
+          <div style={styles.topLeft}>
+            <div style={styles.titleBadge}>
+              <i
+                className="bi bi-journal-bookmark-fill"
+                style={{ color: "#3b82f6" }}
+              ></i>
+              <span>Quản lý đề tài</span>
+            </div>
+            <h2 style={styles.title}>Đề tài của tôi</h2>
+            <p style={styles.subtitle}>
+              Xem và quản lý các đề tài thực tập do bạn đề xuất.
+            </p>
+          </div>
+
+          <div style={styles.topRight}>
+            <div style={styles.statCard}>
+              <span style={styles.statNum}>{topics.length}</span>
+              <span style={styles.statLabel}>Tổng đề tài</span>
+            </div>
+            <div
+              style={{
+                ...styles.statCard,
+                background: "linear-gradient(135deg, #dcfce7, #bbf7d0)",
+                border: "1px solid #86efac",
+              }}
+            >
+              <span style={{ ...styles.statNum, color: "#166534" }}>
+                {topics.filter((t) => t.status === "open").length}
+              </span>
+              <span style={{ ...styles.statLabel, color: "#166534" }}>
+                Đang mở
+              </span>
+            </div>
+            <button style={styles.createTopicBtn} onClick={handleOpenCreate}>
+              <i className="bi bi-plus-circle"></i>
+              Tạo đề tài mới
+            </button>
+          </div>
         </div>
-        <div style={styles.searchBox}>
+
+        {/* SEARCH BAR */}
+        <div style={styles.searchWrapper}>
           <i className="bi bi-search" style={styles.searchIcon}></i>
           <input
+            className="lit-search-input"
             style={styles.searchInput}
-            placeholder="Tìm theo đề tài, bộ môn hoặc vị trí..."
+            placeholder="Tìm theo tên đề tài, bộ môn hoặc vị trí..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
+          {search && (
+            <span style={styles.clearSearch} onClick={() => setSearch("")}>
+              <i className="bi bi-x-circle-fill"></i>
+            </span>
+          )}
+        </div>
+
+        {(showCreateForm || editingId) && (
+          <div style={styles.formCard}>
+            <div style={styles.formHeader}>
+              <div style={styles.formTitleGroup}>
+                <div style={styles.formIconBadge}>
+                  <i
+                    className={`bi ${editingId ? "bi-pencil-fill" : "bi-plus-circle"}`}
+                    style={{ color: "#3b82f6", fontSize: 14 }}
+                  ></i>
+                </div>
+                <div>
+                  <h3 style={styles.formTitle}>
+                    {editingId ? "Cập nhật đề tài" : "Tạo đề tài mới"}
+                  </h3>
+                  <p style={styles.formSubtitle}>
+                    {editingId
+                      ? "Chỉnh sửa thông tin đề tài bên dưới"
+                      : "Điền thông tin đề tài mới và lưu lại."}
+                  </p>
+                </div>
+              </div>
+              <button
+                style={styles.formCloseBtn}
+                onClick={handleCancel}
+                title="Đóng"
+              >
+                <i className="bi bi-x-lg"></i>
+              </button>
+            </div>
+
+            <form style={styles.formGrid} onSubmit={handleSubmit}>
+              <div style={styles.fieldGroup}>
+                <label style={styles.label}>Tên đề tài</label>
+                <input
+                  className="lit-input"
+                  style={styles.input}
+                  name="topicname"
+                  value={form.topicname}
+                  onChange={handleChange}
+                  placeholder="Nhập tên đề tài"
+                  required
+                />
+              </div>
+
+              <div style={styles.fieldGroup}>
+                <label style={styles.label}>Bộ môn</label>
+                <input
+                  className="lit-input"
+                  style={styles.input}
+                  name="department"
+                  value={form.department}
+                  onChange={handleChange}
+                  placeholder="Nhập tên bộ môn"
+                  required
+                />
+              </div>
+
+              <div style={styles.fieldGroup}>
+                <label style={styles.label}>Vị trí / Loại đề tài</label>
+                <input
+                  className="lit-input"
+                  style={styles.input}
+                  name="position"
+                  value={form.position}
+                  onChange={handleChange}
+                  placeholder="Nhập vị trí hoặc loại đề tài"
+                  required
+                />
+              </div>
+
+              <div style={styles.fieldGroup}>
+                <label style={styles.label}>Số lượng sinh viên</label>
+                <input
+                  className="lit-input"
+                  style={styles.input}
+                  name="quantity"
+                  type="number"
+                  min="1"
+                  value={form.quantity}
+                  onChange={handleChange}
+                  required
+                />
+              </div>
+
+              <div style={styles.fieldGroup}>
+                <label style={styles.label}>Ngày bắt đầu</label>
+                <input
+                  className="lit-input"
+                  style={styles.input}
+                  name="startday"
+                  type="date"
+                  value={form.startday}
+                  onChange={handleChange}
+                  required
+                />
+              </div>
+
+              <div style={styles.fieldGroup}>
+                <label style={styles.label}>Ngày kết thúc</label>
+                <input
+                  className="lit-input"
+                  style={styles.input}
+                  name="endday"
+                  type="date"
+                  value={form.endday}
+                  onChange={handleChange}
+                  required
+                />
+              </div>
+
+              <div style={{ ...styles.fieldGroup, gridColumn: "1 / -1" }}>
+                <label style={styles.label}>Mô tả đề tài</label>
+                <textarea
+                  className="lit-textarea"
+                  style={styles.textarea}
+                  name="description"
+                  value={form.description}
+                  onChange={handleChange}
+                  placeholder="Mô tả chi tiết về đề tài..."
+                  required
+                />
+              </div>
+
+              <div style={{ ...styles.fieldGroup, gridColumn: "1 / -1" }}>
+                <label style={styles.label}>Yêu cầu đề tài</label>
+                <textarea
+                  className="lit-textarea"
+                  style={styles.textarea}
+                  name="requirement"
+                  value={form.requirement}
+                  onChange={handleChange}
+                  placeholder="Các yêu cầu kỹ năng, kiến thức cần có..."
+                  required
+                />
+              </div>
+
+              <div style={styles.buttonGroup}>
+                <button type="submit" style={styles.submitBtn}>
+                  <i className="bi bi-check-circle-fill"></i>
+                  {editingId ? "Lưu thay đổi" : "Tạo đề tài"}
+                </button>
+                <button
+                  type="button"
+                  style={styles.cancelBtn}
+                  onClick={handleCancel}
+                >
+                  <i className="bi bi-x-circle"></i>
+                  Hủy bỏ
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
+
+        {/* TOPICS TABLE */}
+        <div style={styles.tableCard}>
+          <div style={styles.tableHeader}>
+            <span style={styles.tableHeaderTitle}>
+              Danh sách đề tài
+              {search && (
+                <span style={styles.resultCount}>
+                  — {filteredTopics.length} kết quả
+                </span>
+              )}
+            </span>
+          </div>
+
+          <div style={styles.tableWrapper}>
+            <table style={styles.table}>
+              <thead>
+                <tr>
+                  <th style={styles.th}>Tên đề tài</th>
+                  <th style={styles.th}>Bộ môn / Vị trí</th>
+                  <th style={{ ...styles.th, textAlign: "center" }}>
+                    Số lượng
+                  </th>
+                  <th style={styles.th}>Thời gian</th>
+                  <th style={{ ...styles.th, textAlign: "center" }}>
+                    Trạng thái
+                  </th>
+                  <th style={{ ...styles.th, textAlign: "center" }}>
+                    Hành động
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredTopics.length === 0 ? (
+                  <tr>
+                    <td colSpan="6" style={styles.emptyCell}>
+                      <div style={styles.emptyState}>
+                        <i
+                          className="bi bi-journal-x"
+                          style={styles.emptyIcon}
+                        ></i>
+                        <p style={styles.emptyText}>
+                          {search
+                            ? "Không tìm thấy đề tài phù hợp."
+                            : "Chưa có đề tài nào."}
+                        </p>
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
+                  filteredTopics.map((topic, idx) => (
+                    <tr
+                      key={topic._id}
+                      className="lit-row"
+                      style={{
+                        ...styles.tableRow,
+                        background:
+                          editingId === topic._id ? "#eff6ff" : "#fff",
+                      }}
+                    >
+                      <td style={styles.td}>
+                        <div style={styles.topicName}>{topic.topicname}</div>
+                        <div style={styles.mutedText}>{topic.description}</div>
+                      </td>
+                      <td style={styles.td}>
+                        <div style={styles.deptLabel}>{topic.department}</div>
+                        <div style={styles.positionBadge}>{topic.position}</div>
+                      </td>
+                      <td style={{ ...styles.td, textAlign: "center" }}>
+                        <span style={styles.quantityBadge}>
+                          {topic.quantity} SV
+                        </span>
+                      </td>
+                      <td style={styles.td}>
+                        <div style={styles.dateRow}>
+                          <i
+                            className="bi bi-calendar-event"
+                            style={{ color: "#94a3b8", fontSize: 12 }}
+                          ></i>
+                          {new Date(topic.startday).toLocaleDateString("vi-VN")}
+                        </div>
+                        <div style={{ ...styles.dateRow, marginTop: 4 }}>
+                          <i
+                            className="bi bi-calendar-check"
+                            style={{ color: "#94a3b8", fontSize: 12 }}
+                          ></i>
+                          {new Date(topic.endday).toLocaleDateString("vi-VN")}
+                        </div>
+                      </td>
+                      <td style={{ ...styles.td, textAlign: "center" }}>
+                        {topic.status === "open" ? (
+                          <span className="lit-badge-open">
+                            <i
+                              className="bi bi-circle-fill"
+                              style={{ fontSize: 7 }}
+                            ></i>
+                            Mở
+                          </span>
+                        ) : (
+                          <span className="lit-badge-closed">
+                            <i
+                              className="bi bi-circle-fill"
+                              style={{ fontSize: 7 }}
+                            ></i>
+                            Đóng
+                          </span>
+                        )}
+                      </td>
+                      <td style={{ ...styles.td, textAlign: "center" }}>
+                        <div style={styles.actionGroup}>
+                          <button
+                            className="lit-edit-btn"
+                            style={styles.editBtn}
+                            onClick={() => handleEdit(topic)}
+                            title="Chỉnh sửa"
+                          >
+                            <i className="bi bi-pencil-fill"></i>
+                            Sửa
+                          </button>
+                          <button
+                            className="lit-delete-btn"
+                            style={styles.deleteBtn}
+                            onClick={() => handleDelete(topic._id)}
+                            title="Xoá đề tài"
+                          >
+                            <i className="bi bi-trash-fill"></i>
+                            Xóa
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
-
-      <div style={styles.formCard}>
-        <h3 style={styles.formTitle}>
-          {editingId ? "Cập nhật đề tài" : "Tạo đề tài mới"}
-        </h3>
-        <form style={styles.formGrid} onSubmit={handleSubmit}>
-          <input
-            style={styles.input}
-            name="topicname"
-            value={form.topicname}
-            onChange={handleChange}
-            placeholder="Tên đề tài"
-            required
-          />
-          <input
-            style={styles.input}
-            name="department"
-            value={form.department}
-            onChange={handleChange}
-            placeholder="Bộ môn"
-            required
-          />
-          <input
-            style={styles.input}
-            name="position"
-            value={form.position}
-            onChange={handleChange}
-            placeholder="Vị trí/Loại đề tài"
-            required
-          />
-          <input
-            style={styles.input}
-            name="quantity"
-            type="number"
-            min="1"
-            value={form.quantity}
-            onChange={handleChange}
-            placeholder="Số lượng sinh viên"
-            required
-          />
-          <input
-            style={styles.input}
-            name="startday"
-            type="date"
-            value={form.startday}
-            onChange={handleChange}
-            required
-          />
-          <input
-            style={styles.input}
-            name="endday"
-            type="date"
-            value={form.endday}
-            onChange={handleChange}
-            required
-          />
-          <textarea
-            style={styles.textarea}
-            name="description"
-            value={form.description}
-            onChange={handleChange}
-            placeholder="Mô tả đề tài"
-            required
-          />
-          <textarea
-            style={styles.textarea}
-            name="requirement"
-            value={form.requirement}
-            onChange={handleChange}
-            placeholder="Yêu cầu đề tài"
-            required
-          />
-          <div style={styles.buttonGroup}>
-            <button type="submit" style={styles.submitBtn}>
-              {editingId ? "Cập nhật" : "Lưu đề tài"}
-            </button>
-            {editingId && (
-              <button
-                type="button"
-                style={styles.cancelBtn}
-                onClick={handleCancel}
-              >
-                Hủy
-              </button>
-            )}
-          </div>
-        </form>
-      </div>
-
-      <div style={styles.tableWrapper}>
-        <table style={styles.table}>
-          <thead>
-            <tr>
-              <th style={styles.th}>Tên đề tài</th>
-              <th style={styles.th}>Bộ môn / Vị trí</th>
-              <th style={styles.th}>Số lượng</th>
-              <th style={styles.th}>Thời gian</th>
-              <th style={styles.th}>Trạng thái</th>
-              <th style={styles.thCenter}>Hành động</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredTopics.length === 0 ? (
-              <tr>
-                <td colSpan="6" style={styles.emptyCell}>
-                  Chưa có đề tài nào phù hợp.
-                </td>
-              </tr>
-            ) : (
-              filteredTopics.map((topic) => (
-                <tr key={topic._id}>
-                  <td style={styles.td}>
-                    <div style={styles.topicName}>{topic.topicname}</div>
-                    <div style={styles.mutedText}>{topic.description}</div>
-                  </td>
-                  <td style={styles.td}>
-                    <div>{topic.department}</div>
-                    <div style={styles.mutedText}>{topic.position}</div>
-                  </td>
-                  <td style={styles.tdCenter}>{topic.quantity}</td>
-                  <td style={styles.td}>
-                    {new Date(topic.startday).toLocaleDateString()} -{" "}
-                    {new Date(topic.endday).toLocaleDateString()}
-                  </td>
-                  <td style={styles.tdCenter}>
-                    <span
-                      style={
-                        topic.status === "open"
-                          ? styles.badgeOpen
-                          : styles.badgeClosed
-                      }
-                    >
-                      {topic.status === "open" ? "Mở" : "Đóng"}
-                    </span>
-                  </td>
-                  <td style={styles.tdCenter}>
-                    <button
-                      style={{ ...styles.actionBtn, ...styles.editBtn }}
-                      onClick={() => handleEdit(topic)}
-                    >
-                      Sửa
-                    </button>
-                    <button
-                      style={{ ...styles.actionBtn, ...styles.deleteBtn }}
-                      onClick={() => handleDelete(topic._id)}
-                    >
-                      Xóa
-                    </button>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
-    </div>
+    </>
   );
 }
 
 const styles = {
   page: {
     minHeight: "100vh",
-    padding: "28px",
-    background:
-      "linear-gradient(180deg, #f8fbff 0%, #eef4ff 45%, #f8fafc 100%)",
+    padding: "28px 32px",
+    background: "linear-gradient(160deg, #f0f4ff 0%, #f8fafc 60%, #fff 100%)",
     fontFamily: "'Inter', sans-serif",
   },
 
+  loadingWrapper: {
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
+    minHeight: "60vh",
+    gap: 16,
+  },
+  loadingText: {
+    color: "#64748b",
+    fontSize: 15,
+    fontWeight: 600,
+  },
+
+  // TOP SECTION
   topSection: {
     display: "flex",
     flexWrap: "wrap",
     justifyContent: "space-between",
-    gap: "20px",
-    marginBottom: "28px",
-    alignItems: "center",
-    background: "#ffffff",
-    borderRadius: "24px",
-    padding: "26px 30px",
-    boxShadow: "0 12px 32px rgba(15,23,42,0.06)",
-    border: "1px solid #e2e8f0",
+    alignItems: "flex-start",
+    gap: 20,
+    marginBottom: 24,
+    background:
+      "radial-gradient(circle at top left, rgba(96,165,250,0.2), transparent 45%), linear-gradient(135deg, #1f2937, #1e40af)",
+    borderRadius: 24,
+    padding: "32px 36px",
+    boxShadow: "0 18px 42px rgba(15,23,42,0.18)",
+    color: "#fff",
   },
-
+  topLeft: {
+    display: "flex",
+    flexDirection: "column",
+    gap: 10,
+    maxWidth: 540,
+  },
+  titleBadge: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 7,
+    background: "rgba(255,255,255,0.15)",
+    border: "1px solid rgba(255,255,255,0.25)",
+    borderRadius: 999,
+    padding: "4px 12px",
+    fontSize: 12,
+    fontWeight: 700,
+    color: "#bfdbfe",
+    width: "fit-content",
+    letterSpacing: "0.4px",
+    backdropFilter: "blur(4px)",
+  },
   title: {
-    fontSize: "34px",
+    fontSize: 32,
     margin: 0,
-    color: "#0f172a",
-    fontWeight: "800",
+    color: "#fff",
+    fontWeight: 800,
     letterSpacing: "-0.5px",
   },
-
   subtitle: {
-    margin: "8px 0 0",
-    color: "#64748b",
-    fontSize: "15px",
-    fontWeight: "500",
+    margin: 0,
+    color: "rgba(255,255,255,0.65)",
+    fontSize: 14,
+    fontWeight: 500,
+  },
+  topRight: {
+    display: "flex",
+    flexWrap: "wrap",
+    gap: 12,
+    alignItems: "center",
+  },
+  statCard: {
+    background: "rgba(255,255,255,0.16)",
+    border: "1px solid rgba(255,255,255,0.2)",
+    borderRadius: 16,
+    padding: "14px 22px",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    gap: 2,
+    backdropFilter: "blur(6px)",
+    minWidth: 90,
+  },
+  statNum: {
+    fontSize: 28,
+    fontWeight: 800,
+    color: "#fff",
+    lineHeight: 1,
+  },
+  statLabel: {
+    fontSize: 11,
+    color: "rgba(255,255,255,0.65)",
+    fontWeight: 600,
+    letterSpacing: "0.4px",
+    textTransform: "uppercase",
+  },
+  createTopicBtn: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 8,
+    padding: "12px 18px",
+    borderRadius: 16,
+    border: "none",
+    background: "linear-gradient(135deg, #2563eb, #3b82f6)",
+    color: "#fff",
+    fontWeight: 700,
+    cursor: "pointer",
+    boxShadow: "0 12px 28px rgba(37,99,235,0.2)",
+    transition: "all 0.22s ease",
+    whiteSpace: "nowrap",
   },
 
-  searchBox: {
+  // SEARCH
+  searchWrapper: {
     position: "relative",
     display: "flex",
     alignItems: "center",
-    background: "#f8fafc",
-    border: "1px solid #dbe4f0",
-    borderRadius: "16px",
-    padding: "0 16px",
-    minWidth: "320px",
-    height: "52px",
+    background: "#fff",
+    border: "1.5px solid #e2e8f0",
+    borderRadius: 16,
+    padding: "0 20px",
+    height: 52,
+    marginBottom: 24,
+    boxShadow: "0 4px 16px rgba(15,23,42,0.05)",
+    transition: "border-color 0.2s",
   },
-
   searchIcon: {
     color: "#94a3b8",
     fontSize: 16,
-    position: "absolute",
-    left: "16px",
+    marginRight: 12,
   },
-
   searchInput: {
     border: "none",
     outline: "none",
-    width: "100%",
-    fontSize: "14px",
+    flex: 1,
+    fontSize: 14,
     color: "#0f172a",
     background: "transparent",
-    paddingLeft: "28px",
-    fontWeight: "500",
+    fontWeight: 500,
+    fontFamily: "'Inter', sans-serif",
   },
-
-  formCard: {
-    marginBottom: "30px",
-    background: "#ffffff",
-    padding: "30px",
-    borderRadius: "26px",
-    boxShadow: "0 15px 40px rgba(15,23,42,0.06)",
-    border: "1px solid #e2e8f0",
-  },
-
-  formTitle: {
-    margin: 0,
-    marginBottom: "24px",
-    color: "#0f172a",
-    fontSize: "24px",
-    fontWeight: "800",
-  },
-
-  formGrid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
-    gap: "18px",
-  },
-
-  buttonGroup: {
-    gridColumn: "1 / -1",
+  clearSearch: {
+    color: "#94a3b8",
+    cursor: "pointer",
+    fontSize: 16,
     display: "flex",
-    gap: "14px",
-    marginTop: "8px",
+    alignItems: "center",
+    marginLeft: 8,
   },
-
-  input: {
-    width: "100%",
-    padding: "14px 16px",
-    border: "1px solid #dbe4f0",
-    borderRadius: "16px",
-    outline: "none",
-    fontSize: "14px",
+  noticeCard: {
+    display: "flex",
+    gap: 16,
+    alignItems: "flex-start",
+    background: "#eff6ff",
+    border: "1px solid #dbeafe",
+    borderRadius: 18,
+    padding: "18px 22px",
+    marginBottom: 24,
+    boxShadow: "0 10px 28px rgba(59,130,246,0.1)",
+  },
+  noticeIcon: {
+    width: 46,
+    minWidth: 46,
+    height: 46,
+    borderRadius: 14,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    background: "linear-gradient(135deg, #bfdbfe, #93c5fd)",
+    color: "#1d4ed8",
+    fontSize: 18,
+  },
+  noticeTitle: {
+    margin: 0,
+    fontSize: 15,
+    fontWeight: 700,
     color: "#0f172a",
-    background: "#f8fafc",
-    transition: "0.2s ease",
-    fontWeight: "500",
-    boxSizing: "border-box",
   },
-
-  textarea: {
-    minHeight: "120px",
-    padding: "14px 16px",
-    border: "1px solid #dbe4f0",
-    borderRadius: "16px",
-    outline: "none",
-    fontSize: "14px",
-    color: "#0f172a",
-    resize: "vertical",
-    background: "#f8fafc",
-    transition: "0.2s ease",
-    fontWeight: "500",
-    boxSizing: "border-box",
-  },
-
-  submitBtn: {
-    flex: 1,
-    padding: "14px 20px",
-    borderRadius: "16px",
-    border: "none",
-    background: "linear-gradient(135deg, #2563eb, #1d4ed8)",
-    color: "#fff",
-    fontWeight: "700",
-    fontSize: "14px",
-    cursor: "pointer",
-    boxShadow: "0 12px 24px rgba(37,99,235,0.25)",
-    transition: "0.25s ease",
-  },
-
-  cancelBtn: {
-    flex: 1,
-    padding: "14px 20px",
-    borderRadius: "16px",
-    border: "1px solid #d1d5db",
-    background: "#fff",
-    color: "#64748b",
-    fontWeight: "700",
-    fontSize: "14px",
-    cursor: "pointer",
-    transition: "0.25s ease",
-  },
-
-  tableWrapper: {
-    overflowX: "auto",
-    background: "#ffffff",
-    borderRadius: "26px",
-    boxShadow: "0 15px 40px rgba(15,23,42,0.06)",
-    border: "1px solid #e2e8f0",
-  },
-
-  table: {
-    width: "100%",
-    borderCollapse: "separate",
-    borderSpacing: 0,
-    minWidth: "980px",
-  },
-
-  th: {
-    textAlign: "left",
-    padding: "20px",
+  noticeText: {
+    margin: "6px 0 0",
     color: "#475569",
-    fontSize: "13px",
-    fontWeight: "700",
-    textTransform: "uppercase",
-    letterSpacing: "0.05em",
-    borderBottom: "1px solid #e2e8f0",
-    background: "#f8fafc",
-  },
-
-  thCenter: {
-    textAlign: "center",
-    padding: "20px",
-    color: "#475569",
-    fontSize: "13px",
-    fontWeight: "700",
-    textTransform: "uppercase",
-    letterSpacing: "0.05em",
-    borderBottom: "1px solid #e2e8f0",
-    background: "#f8fafc",
-  },
-
-  td: {
-    padding: "20px",
-    verticalAlign: "top",
-    borderBottom: "1px solid #f1f5f9",
-    color: "#334155",
-    fontSize: "14px",
-    background: "#fff",
-  },
-
-  tdCenter: {
-    padding: "20px",
-    textAlign: "center",
-    verticalAlign: "middle",
-    borderBottom: "1px solid #f1f5f9",
-    color: "#334155",
-    fontSize: "14px",
-    background: "#fff",
-  },
-
-  emptyCell: {
-    padding: "60px 20px",
-    textAlign: "center",
-    color: "#64748b",
-    fontSize: "15px",
-    background: "#fff",
-  },
-
-  topicName: {
-    fontWeight: "700",
-    marginBottom: "8px",
-    color: "#0f172a",
-    fontSize: "15px",
-    lineHeight: 1.5,
-  },
-
-  mutedText: {
-    color: "#64748b",
-    fontSize: "13px",
-    marginTop: "8px",
+    fontSize: 13,
     lineHeight: 1.6,
   },
 
-  badgeOpen: {
-    display: "inline-flex",
+  // FORM CARD (edit only)
+  formCard: {
+    marginBottom: 24,
+    background: "#fff",
+    borderRadius: 24,
+    boxShadow: "0 16px 48px rgba(37,99,235,0.12)",
+    border: "1.5px solid #bfdbfe",
+    overflow: "hidden",
+  },
+  formHeader: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: "20px 28px",
+    background: "linear-gradient(135deg, #eff6ff, #dbeafe)",
+    borderBottom: "1px solid #bfdbfe",
+  },
+  formTitleGroup: {
+    display: "flex",
+    alignItems: "center",
+    gap: 14,
+  },
+  formIconBadge: {
+    width: 40,
+    height: 40,
+    background: "#dbeafe",
+    border: "1.5px solid #bfdbfe",
+    borderRadius: 12,
+    display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    padding: "8px 14px",
-    borderRadius: "999px",
-    color: "#166534",
-    background: "#dcfce7",
-    fontWeight: "700",
-    fontSize: "13px",
-    minWidth: "80px",
   },
-
-  badgeClosed: {
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-    padding: "8px 14px",
-    borderRadius: "999px",
-    color: "#991b1b",
-    background: "#fee2e2",
-    fontWeight: "700",
-    fontSize: "13px",
-    minWidth: "80px",
+  formTitle: {
+    margin: 0,
+    color: "#1e3a8a",
+    fontSize: 18,
+    fontWeight: 800,
   },
-
-  actionBtn: {
-    border: "none",
-    color: "#fff",
-    padding: "10px 14px",
-    borderRadius: "12px",
+  formSubtitle: {
+    margin: "2px 0 0",
+    color: "#3b82f6",
+    fontSize: 12,
+    fontWeight: 500,
+  },
+  formCloseBtn: {
+    width: 36,
+    height: 36,
+    background: "rgba(239,68,68,0.1)",
+    border: "1px solid rgba(239,68,68,0.2)",
+    borderRadius: 10,
     cursor: "pointer",
-    fontSize: "13px",
-    fontWeight: "700",
-    marginRight: "8px",
+    color: "#ef4444",
+    fontSize: 14,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    transition: "0.2s",
+  },
+  formGrid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+    gap: 20,
+    padding: "28px",
+  },
+  fieldGroup: {
+    display: "flex",
+    flexDirection: "column",
+    gap: 8,
+  },
+  label: {
+    fontSize: 12,
+    fontWeight: 700,
+    color: "#475569",
+    textTransform: "uppercase",
+    letterSpacing: "0.5px",
+  },
+  input: {
+    width: "100%",
+    padding: "12px 16px",
+    border: "1.5px solid #e2e8f0",
+    borderRadius: 12,
+    outline: "none",
+    fontSize: 14,
+    color: "#0f172a",
+    background: "#f8fafc",
+    transition: "all 0.2s ease",
+    fontWeight: 500,
+    boxSizing: "border-box",
+    fontFamily: "'Inter', sans-serif",
+  },
+  textarea: {
+    width: "100%",
+    minHeight: 100,
+    padding: "12px 16px",
+    border: "1.5px solid #e2e8f0",
+    borderRadius: 12,
+    outline: "none",
+    fontSize: 14,
+    color: "#0f172a",
+    resize: "vertical",
+    background: "#f8fafc",
+    transition: "all 0.2s ease",
+    fontWeight: 500,
+    boxSizing: "border-box",
+    fontFamily: "'Inter', sans-serif",
+  },
+  buttonGroup: {
+    gridColumn: "1 / -1",
+    display: "flex",
+    gap: 12,
+    marginTop: 4,
+  },
+  submitBtn: {
+    flex: 1,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    padding: "13px 20px",
+    borderRadius: 12,
+    border: "none",
+    background: "linear-gradient(135deg, #2563eb, #1d4ed8)",
+    color: "#fff",
+    fontWeight: 700,
+    fontSize: 14,
+    cursor: "pointer",
+    boxShadow: "0 8px 20px rgba(37,99,235,0.3)",
     transition: "0.25s ease",
-    minWidth: "72px",
+    fontFamily: "'Inter', sans-serif",
+  },
+  cancelBtn: {
+    flex: 1,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    padding: "13px 20px",
+    borderRadius: 12,
+    border: "1.5px solid #e2e8f0",
+    background: "#fff",
+    color: "#64748b",
+    fontWeight: 700,
+    fontSize: 14,
+    cursor: "pointer",
+    transition: "0.25s ease",
+    fontFamily: "'Inter', sans-serif",
   },
 
+  // TABLE
+  tableCard: {
+    background: "#fff",
+    borderRadius: 24,
+    boxShadow: "0 8px 32px rgba(15,23,42,0.07)",
+    border: "1px solid #e2e8f0",
+    overflow: "hidden",
+  },
+  tableHeader: {
+    padding: "20px 28px",
+    borderBottom: "1px solid #f1f5f9",
+    background: "#fafbff",
+  },
+  tableHeaderTitle: {
+    fontSize: 15,
+    fontWeight: 700,
+    color: "#0f172a",
+  },
+  resultCount: {
+    color: "#3b82f6",
+    fontWeight: 600,
+    fontSize: 14,
+  },
+  tableWrapper: {
+    overflowX: "auto",
+  },
+  table: {
+    width: "100%",
+    borderCollapse: "collapse",
+    minWidth: 900,
+  },
+  tableRow: {
+    transition: "background 0.15s",
+  },
+  th: {
+    padding: "14px 20px",
+    color: "#64748b",
+    fontSize: 11,
+    fontWeight: 700,
+    textTransform: "uppercase",
+    letterSpacing: "0.06em",
+    borderBottom: "1px solid #f1f5f9",
+    background: "#f8fafc",
+    whiteSpace: "nowrap",
+  },
+  td: {
+    padding: "16px 20px",
+    verticalAlign: "middle",
+    borderBottom: "1px solid #f1f5f9",
+    color: "#334155",
+    fontSize: 14,
+    transition: "background 0.15s",
+  },
+
+  topicName: {
+    fontWeight: 700,
+    color: "#0f172a",
+    fontSize: 14,
+    lineHeight: 1.5,
+    marginBottom: 4,
+  },
+  mutedText: {
+    color: "#94a3b8",
+    fontSize: 12,
+    lineHeight: 1.5,
+    display: "-webkit-box",
+    WebkitLineClamp: 2,
+    WebkitBoxOrient: "vertical",
+    overflow: "hidden",
+  },
+  deptLabel: {
+    fontWeight: 600,
+    color: "#334155",
+    fontSize: 13,
+    marginBottom: 4,
+  },
+  positionBadge: {
+    display: "inline-block",
+    padding: "3px 10px",
+    borderRadius: 999,
+    background: "#eff6ff",
+    color: "#3b82f6",
+    fontSize: 11,
+    fontWeight: 700,
+    border: "1px solid #bfdbfe",
+  },
+  quantityBadge: {
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: "5px 12px",
+    borderRadius: 999,
+    background: "#f1f5f9",
+    color: "#475569",
+    fontWeight: 700,
+    fontSize: 13,
+    border: "1px solid #e2e8f0",
+  },
+  dateRow: {
+    display: "flex",
+    alignItems: "center",
+    gap: 6,
+    color: "#475569",
+    fontSize: 12,
+    fontWeight: 500,
+  },
+  emptyCell: {
+    padding: 0,
+    background: "#fff",
+  },
+  emptyState: {
+    padding: "60px 20px",
+    textAlign: "center",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    gap: 12,
+  },
+  emptyIcon: {
+    fontSize: 40,
+    color: "#cbd5e1",
+  },
+  emptyText: {
+    color: "#64748b",
+    fontSize: 15,
+    fontWeight: 500,
+    margin: 0,
+  },
+  actionGroup: {
+    display: "flex",
+    gap: 8,
+    justifyContent: "center",
+    alignItems: "center",
+  },
   editBtn: {
-    background: "linear-gradient(135deg, #3b82f6, #2563eb)",
-    boxShadow: "0 8px 18px rgba(59,130,246,0.25)",
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 5,
+    padding: "8px 14px",
+    borderRadius: 10,
+    border: "none",
+    background: "linear-gradient(135deg, #60a5fa, #3b82f6)",
+    color: "#fff",
+    fontWeight: 700,
+    fontSize: 12,
+    cursor: "pointer",
+    boxShadow: "0 4px 12px rgba(59,130,246,0.2)",
+    transition: "all 0.22s ease",
+    fontFamily: "'Inter', sans-serif",
   },
-
   deleteBtn: {
-    background: "linear-gradient(135deg, #ef4444, #dc2626)",
-    boxShadow: "0 8px 18px rgba(239,68,68,0.25)",
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 5,
+    padding: "8px 14px",
+    borderRadius: 10,
+    border: "none",
+    background: "linear-gradient(135deg, #f87171, #ef4444)",
+    color: "#fff",
+    fontWeight: 700,
+    fontSize: 12,
+    cursor: "pointer",
+    boxShadow: "0 4px 12px rgba(239,68,68,0.2)",
+    transition: "all 0.22s ease",
+    fontFamily: "'Inter', sans-serif",
   },
 };
