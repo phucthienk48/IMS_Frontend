@@ -53,10 +53,20 @@ export default function Header() {
           to="/application"
           style={{
             ...styles.link,
-            ...(isActive("/internship") && styles.activeLink),
+            ...(isActive("/application") && styles.activeLink),
           }}
         >
           Thực tập
+        </Link>
+
+        <Link
+          to="/internship-result"
+          style={{
+            ...styles.link,
+            ...(isActive("/internship-result") && styles.activeLink),
+          }}
+        >
+          Kết quả
         </Link>
 
         <Link

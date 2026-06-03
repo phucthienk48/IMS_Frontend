@@ -37,10 +37,11 @@ export default function AdminLayout() {
       label: "Quản lý tài khoản",
     },
     {
-      path: "/admin/student",
+      path: "/admin/students",
       icon: "bi-mortarboard-fill",
       label: "Quản lý sinh viên",
     },
+
     {
       path: "/admin/internship",
       icon: "bi-book-fill",

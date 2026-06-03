@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 
 const API = "http://localhost:5000";
 
-export default function LecturerStudent() {
+export default function AdminStudent() {
   const navigate = useNavigate();
   const [applications, setApplications] = useState([]);
   const [topics, setTopics] = useState([]);
@@ -22,20 +22,21 @@ export default function LecturerStudent() {
   const [viewReportApp, setViewReportApp] = useState(null);
   const [weeklyReports, setWeeklyReports] = useState([]);
   const [weeklyLoading, setWeeklyLoading] = useState(false);
-  const [feedbackForm, setFeedbackForm] = useState({}); // { [reportId]: { feedback, status } }
+  const [feedbackForm, setFeedbackForm] = useState({});
   const [feedbackSaving, setFeedbackSaving] = useState({});
   const [assignTopicForm, setAssignTopicForm] = useState({});
   const [assigningTopic, setAssigningTopic] = useState({});
+  const [viewingDetailApp, setViewingDetailApp] = useState(null);
 
-  const user = JSON.parse(localStorage.getItem("user")) || {};
-  const currentLecturerId = user._id || user.id;
+  const openDetailModal = (app) => {
+    setViewingDetailApp(app);
+  };
 
   const fetchApplications = async () => {
     try {
       const res = await fetch(`${API}/api/application`);
       const data = await res.json();
       const sanitizedApplications = (data.data || []).filter((app) => {
-        // Defensive filter in case backend uses soft-delete flags.
         if (!app) return false;
         if (app.isDeleted === true) return false;
         if (app.deleted === true) return false;
@@ -44,7 +45,7 @@ export default function LecturerStudent() {
       });
       setApplications(sanitizedApplications);
     } catch (err) {
-      console.error("Lỗi lấy danh sách sinh viên thực tập:", err);
+      console.error("Lỗi lấy danh sách sinh viên thực tập (admin):", err);
     } finally {
       setLoading(false);
     }
@@ -56,7 +57,7 @@ export default function LecturerStudent() {
       const data = await res.json();
       setTopics(data.data || []);
     } catch (err) {
-      console.error("Lỗi lấy danh sách đề tài:", err);
+      console.error("Lỗi lấy danh sách đề tài (admin):", err);
       setTopics([]);
     }
   };
@@ -66,33 +67,25 @@ export default function LecturerStudent() {
     fetchTopics();
   }, []);
 
-  // Lọc sinh viên hướng dẫn của giảng viên hiện tại
-  const myGuidedStudents = applications.filter((app) => {
+  // Dành cho admin: hiển thị tất cả sinh viên đã được duyệt
+  const adminStudents = applications.filter((app) => {
     if (!app || app.isDeleted || app.deleted || app.deletedAt) return false;
-
-    // Chỉ lấy hồ sơ đã duyệt thực tập
     if (app.status !== "đã duyệt") return false;
-    
-    // Đề tài của giảng viên này
-    if (!app.topic) return false;
-    const topicLecturerId = app.topic.lecturer?._id || app.topic.lecturer;
-    return topicLecturerId === currentLecturerId;
+    return true;
   });
 
-  // Sinh viên đã duyệt nhưng chưa có đề tài để giảng viên tiện theo dõi
   const studentsWithoutTopic = applications.filter((app) => {
     if (!app || app.isDeleted || app.deleted || app.deletedAt) return false;
     if (app.status !== "đã duyệt") return false;
     return !app.topic;
   });
 
-  const myTopics = topics.filter((topic) => {
-    const topicLecturerId = topic.lecturer?._id || topic.lecturer;
-    return topicLecturerId === currentLecturerId;
-  });
+  const adminTopics = topics;
 
-  // Tìm kiếm và lọc theo trạng thái thực tập
-  const filteredStudents = myGuidedStudents.filter((student) => {
+  const filteredStudents = adminStudents.filter((student) => {
+    // Exclude students who don't have an assigned topic — they should appear only
+    // in the separate "studentsWithoutTopic" table below.
+    if (!student.topic) return false;
     const matchSearch =
       student.fullName.toLowerCase().includes(search.toLowerCase()) ||
       student.studentCode.toLowerCase().includes(search.toLowerCase()) ||
@@ -105,13 +98,12 @@ export default function LecturerStudent() {
     return matchSearch && matchStatus;
   });
 
-  // Thống kê nhanh
   const stats = {
-    total: myGuidedStudents.length,
-    interning: myGuidedStudents.filter((s) => (s.internshipStatus || "đang thực tập") === "đang thực tập").length,
-    completed: myGuidedStudents.filter((s) => s.internshipStatus === "đã hoàn thành").length,
+    total: adminStudents.length,
+    interning: adminStudents.filter((s) => (s.internshipStatus || "đang thực tập") === "đang thực tập").length,
+    completed: adminStudents.filter((s) => s.internshipStatus === "đã hoàn thành").length,
     averageScore: (() => {
-      const gradedStudents = myGuidedStudents.filter((s) => s.score !== null && s.score !== undefined);
+      const gradedStudents = adminStudents.filter((s) => s.score !== null && s.score !== undefined);
       if (gradedStudents.length === 0) return "---";
       const totalScore = gradedStudents.reduce((acc, s) => acc + s.score, 0);
       return (totalScore / gradedStudents.length).toFixed(1);
@@ -170,6 +162,10 @@ export default function LecturerStudent() {
       return;
     }
 
+    if (!window.confirm('Xác nhận lưu kết quả đánh giá cho sinh viên này?')) {
+      return;
+    }
+
     setSaving(true);
     try {
       const res = await fetch(`${API}/api/application/${evaluatingApp._id}/evaluation`, {
@@ -193,7 +189,7 @@ export default function LecturerStudent() {
         alert(data.message || "Đánh giá thất bại");
       }
     } catch (err) {
-      console.error("Lỗi gửi đánh giá lên server:", err);
+      console.error("Lỗi gửi đánh giá lên server (admin):", err);
       alert("Có lỗi xảy ra khi kết nối server");
     } finally {
       setSaving(false);
@@ -218,12 +214,11 @@ export default function LecturerStudent() {
       const data = await res.json();
       const rpts = data.data || [];
       setWeeklyReports(rpts);
-      // Khởi tạo form feedback để rỗng cho từng báo cáo
       const init = {};
       rpts.forEach((r) => { init[r._id] = { feedback: r.feedback || "", status: r.status }; });
       setFeedbackForm(init);
     } catch (err) {
-      console.error("Lỗi tải nhật ký:", err);
+      console.error("Lỗi tải nhật ký (admin):", err);
       setWeeklyReports([]);
       setFeedbackForm({});
       alert(err.message || "Không thể tải nhật ký thực tập");
@@ -261,6 +256,7 @@ export default function LecturerStudent() {
       alert("Vui lòng chọn đề tài trước khi gán.");
       return;
     }
+    if (!window.confirm('Xác nhận gán đề tài cho sinh viên này?')) return;
 
     setAssigningTopic((prev) => ({ ...prev, [applicationId]: true }));
     try {
@@ -279,7 +275,7 @@ export default function LecturerStudent() {
         alert(data.message || "Gán đề tài thất bại");
       }
     } catch (err) {
-      console.error("Lỗi gán đề tài:", err);
+      console.error("Lỗi gán đề tài (admin):", err);
       alert("Có lỗi xảy ra khi kết nối server");
     } finally {
       setAssigningTopic((prev) => ({ ...prev, [applicationId]: false }));
@@ -291,23 +287,21 @@ export default function LecturerStudent() {
 
   return (
     <div style={styles.container}>
-      {/* Header */}
       <div style={styles.header}>
         <div>
-          <button style={styles.backBtn} onClick={() => navigate("/lecturer")}>
+          <button style={styles.backBtn} onClick={() => navigate("/admin")}>
             <i className="bi bi-arrow-left"></i> Quay lại
           </button>
           <h2 style={styles.pageTitle}>
             <i className="bi bi-people-fill" style={styles.titleIcon}></i>
-            SINH VIÊN HƯỚNG DẪN
+            DANH SÁCH SINH VIÊN
           </h2>
           <p style={styles.subTitle}>
-            Xem danh sách, theo dõi tiến độ và đánh giá kết quả thực tập của sinh viên hướng dẫn
+            Xem danh sách, theo dõi tiến độ và đánh giá kết quả thực tập (Admin)
           </p>
         </div>
       </div>
 
-      {/* Thống kê nhanh */}
       <div style={styles.statsGrid}>
         <div style={{ ...styles.statsCard, borderLeft: "5px solid #2563eb" }}>
           <span style={styles.statsLabel}>Tổng số sinh viên</span>
@@ -327,7 +321,6 @@ export default function LecturerStudent() {
         </div>
       </div>
 
-      {/* Bộ lọc và tìm kiếm */}
       <div style={styles.filterBar}>
         <div style={styles.searchBox}>
           <i className="bi bi-search" style={styles.searchIcon}></i>
@@ -351,7 +344,6 @@ export default function LecturerStudent() {
         </select>
       </div>
 
-      {/* Bảng danh sách sinh viên */}
       <div style={styles.tableWrapper}>
         <table style={styles.table}>
           <thead>
@@ -371,7 +363,7 @@ export default function LecturerStudent() {
               <tr>
                 <td colSpan="8" style={{ ...styles.td, textAlign: "center", padding: 40, color: "#64748b" }}>
                   <i className="bi bi-inbox" style={{ fontSize: 32, display: "block", marginBottom: 8, color: "#cbd5e1" }}></i>
-                  Không tìm thấy sinh viên hướng dẫn nào phù hợp.
+                  Không tìm thấy sinh viên phù hợp.
                 </td>
               </tr>
             ) : (
@@ -438,21 +430,62 @@ export default function LecturerStudent() {
                     </div>
                   </td>
                   <td style={styles.tdCenter}>
-                    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                      <button
-                        style={styles.evaluateBtn}
-                        onClick={() => openEvaluationModal(app)}
-                        title="Đánh giá & Cho điểm sinh viên"
-                      >
-                        <i className="bi bi-pencil-square me-1"></i> Đánh giá
-                      </button>
-                      <button
-                        style={styles.viewReportBtn}
-                        onClick={() => openReportView(app)}
-                        title="Xem và nhận xét nhật ký tuần"
-                      >
-                        <i className="bi bi-journal-text me-1"></i> Nhật ký
-                      </button>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 8, alignItems: "center" }}>
+                      {(!app.topic || !app.topic._id) ? (
+                        // If no topic, allow quick assign inline
+                        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                          <select
+                            style={{ ...styles.formInput, minWidth: 180 }}
+                            value={assignTopicForm[app._id] || ""}
+                            onChange={(e) =>
+                              setAssignTopicForm((prev) => ({ ...prev, [app._id]: e.target.value }))
+                            }
+                          >
+                            <option value="">-- Chọn đề tài --</option>
+                            {adminTopics.map((topic) => (
+                              <option key={topic._id} value={topic._id}>
+                                {topic.topicname}
+                              </option>
+                            ))}
+                          </select>
+                          <button
+                            style={styles.assignTopicBtn}
+                            onClick={() => handleAssignTopic(app._id)}
+                            disabled={assigningTopic[app._id]}
+                          >
+                            {assigningTopic[app._id] ? "Đang gán..." : "Gán"}
+                          </button>
+                        </div>
+                      ) : (
+                        // If has topic, show actions
+                        <>
+                          <div style={{ display: "flex", gap: 8 }}>
+                            <button
+                              style={styles.evaluateBtn}
+                              onClick={() => openEvaluationModal(app)}
+                              title={(!app.cvFile && !app.transcriptFile) ? "Không thể đánh giá: thiếu hồ sơ" : "Đánh giá & Cho điểm sinh viên"}
+                              disabled={saving || (!app.cvFile && !app.transcriptFile)}
+                            >
+                              <i className="bi bi-pencil-square me-1"></i> Đánh giá
+                            </button>
+
+                            <button
+                              style={styles.viewReportBtn}
+                              onClick={() => openReportView(app)}
+                              title="Xem và nhận xét nhật ký tuần"
+                            >
+                              <i className="bi bi-journal-text me-1"></i> Nhật ký
+                            </button>
+                          </div>
+                          <button
+                            style={{ ...styles.evaluateBtn, background: '#64748b', borderColor: '#94a3b8', marginTop: 6 }}
+                            onClick={() => openDetailModal(app)}
+                            title="Xem chi tiết hồ sơ sinh viên"
+                          >
+                            <i className="bi bi-info-circle me-1"></i> Chi tiết
+                          </button>
+                        </>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -462,7 +495,6 @@ export default function LecturerStudent() {
         </table>
       </div>
 
-      {/* Danh sách sinh viên chưa có đề tài */}
       <div style={{ ...styles.tableWrapper, marginTop: 20 }}>
         <div style={styles.untopicHeader}>
           <h3 style={{ margin: 0, fontSize: 18, color: "#334155" }}>
@@ -536,8 +568,8 @@ export default function LecturerStudent() {
                     {app.note || "Chưa có ghi chú"}
                   </td>
                   <td style={styles.tdCenter}>
-                    {myTopics.length === 0 ? (
-                      <span style={styles.noScore}>Bạn chưa có đề tài để gán</span>
+                    {adminTopics.length === 0 ? (
+                      <span style={styles.noScore}>Chưa có đề tài để gán</span>
                     ) : (
                       <div style={{ display: "flex", flexDirection: "column", gap: 8, minWidth: 210 }}>
                         <select
@@ -551,7 +583,7 @@ export default function LecturerStudent() {
                           }
                         >
                           <option value="">-- Chọn đề tài --</option>
-                          {myTopics.map((topic) => (
+                          {adminTopics.map((topic) => (
                             <option key={topic._id} value={topic._id}>
                               {topic.topicname}
                             </option>
@@ -575,7 +607,6 @@ export default function LecturerStudent() {
         </table>
       </div>
 
-      {/* Modal Đánh giá */}
       {evaluatingApp && (
         <div style={styles.modalOverlay}>
           <div style={styles.modalBox}>
@@ -588,14 +619,12 @@ export default function LecturerStudent() {
 
             <form onSubmit={handleEvaluationSubmit}>
               <div style={styles.modalBody}>
-                {/* Thông tin sinh viên nhanh */}
                 <div style={styles.studentQuickInfo}>
                   <div>Sinh viên: <strong>{evaluatingApp.fullName}</strong></div>
                   <div>MSSV: <strong>{evaluatingApp.studentCode}</strong></div>
                   <div>Đề tài: <strong>{evaluatingApp.topic?.topicname}</strong></div>
                 </div>
 
-                {/* Trạng thái thực tập */}
                 <div style={styles.formGroup}>
                   <label style={styles.formLabel}>Trạng thái thực tập <span style={{ color: "red" }}>*</span></label>
                   <select
@@ -610,7 +639,6 @@ export default function LecturerStudent() {
                   </select>
                 </div>
 
-                {/* Điểm số */}
                 <div style={styles.formGroup}>
                   <label style={styles.formLabel}>Điểm thực tập (Thang điểm 10)</label>
                   <input
@@ -628,7 +656,6 @@ export default function LecturerStudent() {
                   </small>
                 </div>
 
-                {/* Nhận xét */}
                 <div style={styles.formGroup}>
                   <label style={styles.formLabel}>Nhận xét / Đánh giá</label>
                   <textarea
@@ -663,7 +690,53 @@ export default function LecturerStudent() {
         </div>
       )}
 
-      {/* Modal Nhật ký tuần - Giảng viên xem và nhận xét */}
+      {viewingDetailApp && (
+        <div style={styles.modalOverlay} onClick={() => setViewingDetailApp(null)}>
+          <div style={{ ...styles.modalBox, maxWidth: 560 }} onClick={(e) => e.stopPropagation()}>
+            <div style={styles.modalHeader}>
+              <h4 style={{ margin: 0, color: "#1e3a8a" }}>
+                <i className="bi bi-person-lines-fill me-2"></i> CHI TIẾT HỒ SƠ
+              </h4>
+              <button style={styles.closeBtn} onClick={() => setViewingDetailApp(null)}>✕</button>
+            </div>
+            <div style={{ padding: 20 }}>
+              <div style={{ marginBottom: 12 }}>
+                <div style={{ fontSize: 14, fontWeight: 700 }}>{viewingDetailApp.fullName}</div>
+                <div style={{ color: '#64748b', fontSize: 13 }}>MSSV: {viewingDetailApp.studentCode}</div>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div>
+                  <div style={{ fontSize: 13, color: '#334155', fontWeight: 700 }}>Ngành</div>
+                  <div style={{ color: '#64748b' }}>{viewingDetailApp.major}</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 13, color: '#334155', fontWeight: 700 }}>Khóa</div>
+                  <div style={{ color: '#64748b' }}>{viewingDetailApp.course}</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 13, color: '#334155', fontWeight: 700 }}>Email</div>
+                  <div style={{ color: '#64748b' }}>{viewingDetailApp.email}</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 13, color: '#334155', fontWeight: 700 }}>SĐT</div>
+                  <div style={{ color: '#64748b' }}>{viewingDetailApp.sdt}</div>
+                </div>
+              </div>
+
+              <div style={{ marginTop: 16 }}>
+                <div style={{ fontSize: 13, color: '#334155', fontWeight: 700 }}>Đề tài</div>
+                <div style={{ color: '#64748b' }}>{viewingDetailApp.topic?.topicname || '---'}</div>
+              </div>
+
+              <div style={{ marginTop: 16 }}>
+                <div style={{ fontSize: 13, color: '#334155', fontWeight: 700 }}>Ghi chú</div>
+                <div style={{ color: '#64748b' }}>{viewingDetailApp.note || 'Không có'}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {viewReportApp && (
         <div style={styles.modalOverlay} onClick={() => setViewReportApp(null)}>
           <div
@@ -702,7 +775,6 @@ export default function LecturerStudent() {
                     }[report.status] || {};
                     return (
                       <div key={report._id} style={styles.reportViewCard}>
-                        {/* Header tuần */}
                         <div style={styles.reportViewHeader}>
                           <span style={styles.weekLabel}>Tuần {report.week}</span>
                           <span style={{ ...styles.reportStatusPill, ...statusStyle }}>{report.status}</span>
@@ -711,7 +783,6 @@ export default function LecturerStudent() {
                           </span>
                         </div>
 
-                        {/* Nội dung sinh viên */}
                         <div style={{ marginBottom: 14 }}>
                           <p style={{ fontSize: 12, fontWeight: 700, color: "#475569", marginBottom: 4 }}>
                             <i className="bi bi-person-fill me-1"></i> Nội dung sinh viên:
@@ -721,10 +792,9 @@ export default function LecturerStudent() {
                           </p>
                         </div>
 
-                        {/* Phần nhận xét của giảng viên */}
                         <div style={{ background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: 10, padding: "14px 16px" }}>
                           <p style={{ fontSize: 12, fontWeight: 700, color: "#1e40af", marginBottom: 8 }}>
-                            <i className="bi bi-chat-left-quote-fill me-1"></i> Nhận xét của Giảng viên:
+                            <i className="bi bi-chat-left-quote-fill me-1"></i> Nhận xét của Admin:
                           </p>
                           <textarea
                             style={{ ...styles.formTextarea, background: "#fff", marginBottom: 10, minHeight: 70 }}
@@ -764,6 +834,7 @@ export default function LecturerStudent() {
   );
 }
 
+// Reuse styles from lecturer page to keep consistent look
 const styles = {
   container: {
     minHeight: "85vh",
@@ -771,7 +842,6 @@ const styles = {
     background: "linear-gradient(180deg, #f8fbff 0%, #eef4ff 50%, #f8fafc 100%)",
     fontFamily: "'Inter', Arial, sans-serif",
   },
-
   header: {
     marginBottom: "24px",
     background: "#ffffff",
@@ -780,7 +850,6 @@ const styles = {
     boxShadow: "0 8px 30px rgba(37,99,235,0.06)",
     border: "1px solid #e2e8f0",
   },
-
   backBtn: {
     padding: "8px 14px",
     background: "#eff6ff",
@@ -796,7 +865,6 @@ const styles = {
     alignItems: "center",
     gap: 6,
   },
-
   pageTitle: {
     fontSize: "28px",
     fontWeight: "800",
@@ -807,417 +875,51 @@ const styles = {
     gap: 10,
     letterSpacing: "-0.5px",
   },
+  titleIcon: { color: "#f59e0b", fontSize: "26px" },
+  subTitle: { color: "#64748b", fontSize: "14px", margin: 0, fontWeight: "500" },
+  statsGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "16px", marginBottom: "24px" },
+  statsCard: { background: "#ffffff", padding: "18px", borderRadius: "16px", boxShadow: "0 4px 15px rgba(15,23,42,0.04)", display: "flex", flexDirection: "column", gap: "6px", border: "1px solid #e2e8f0" },
+  statsLabel: { fontSize: "13px", color: "#64748b", fontWeight: "600" },
+  statsValue: { fontSize: "28px", fontWeight: "800", lineHeight: 1.2 },
+  filterBar: { display: "flex", gap: "12px", marginBottom: "20px", flexWrap: "wrap", background: "#ffffff", padding: "16px", borderRadius: "14px", boxShadow: "0 4px 15px rgba(15,23,42,0.03)", border: "1px solid #e2e8f0" },
+  searchBox: { position: "relative", display: "flex", alignItems: "center", flex: 1, minWidth: "260px" },
+  searchIcon: { position: "absolute", left: "12px", fontSize: "14px", color: "#94a3b8" },
+  searchInput: { width: "100%", padding: "10px 12px 10px 36px", borderRadius: "10px", border: "1px solid #dbe4f0", fontSize: "13px", outline: "none", background: "#f8fafc", color: "#0f172a" },
+  filterSelect: { padding: "10px 14px", borderRadius: "10px", border: "1px solid #dbe4f0", fontSize: "13px", background: "#f8fafc", outline: "none", minWidth: "180px", color: "#0f172a", fontWeight: "500" },
+  tableWrapper: { background: "#ffffff", borderRadius: "16px", overflow: "hidden", border: "1px solid #e2e8f0", boxShadow: "0 10px 30px rgba(15,23,42,0.04)", overflowX: "auto" },
+  table: { width: "100%", borderCollapse: "collapse", minWidth: "1050px" },
+  th: { padding: "14px 16px", background: "#f8fafc", fontWeight: 600, color: "#1e3a8a", borderBottom: "2px solid #e2e8f0", textAlign: "left", fontSize: "13px" },
+  thCenter: { padding: "14px 16px", background: "#f8fafc", fontWeight: 600, color: "#1e3a8a", borderBottom: "2px solid #e2e8f0", textAlign: "center", fontSize: "13px" },
+  tr: { borderBottom: "1px solid #f1f5f9", transition: "background-color 0.2s" },
+  td: { padding: "14px 16px", color: "#334155", fontSize: "13px", verticalAlign: "middle" },
+  tdCenter: { padding: "14px 16px", textAlign: "center", verticalAlign: "middle", fontSize: "13px" },
+  fileLink: { display: "inline-flex", alignItems: "center", gap: 4, padding: "4px 8px", borderRadius: "6px", border: "1px solid #e2e8f0", background: "#f8fafc", color: "#334155", fontSize: "11px", fontWeight: 500, textDecoration: "none", transition: "all 0.2s" },
+  scoreBadge: { background: "#fef3c7", color: "#d97706", border: "1px solid #fde68a", padding: "6px 12px", borderRadius: "8px", fontWeight: "700", fontSize: "13px" },
+  noScore: { color: "#94a3b8", fontStyle: "italic" },
+  feedbackContainer: { maxWidth: "240px" },
+  feedbackText: { margin: 0, fontSize: "12px", color: "#475569", lineHeight: "1.5", display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden", textOverflow: "ellipsis" },
+  noFeedback: { color: "#94a3b8", fontStyle: "italic", fontSize: "12px" },
+  evaluateBtn: { padding: "8px 14px", borderRadius: "10px", border: "none", background: "#2563eb", color: "#ffffff", fontSize: "12px", fontWeight: "600", cursor: "pointer", boxShadow: "0 2px 4px rgba(37,99,235,0.15)", transition: "all 0.2s", display: "inline-flex", alignItems: "center", gap: 4 },
 
-  titleIcon: {
-    color: "#f59e0b",
-    fontSize: "26px",
-  },
-
-  subTitle: {
-    color: "#64748b",
-    fontSize: "14px",
-    margin: 0,
-    fontWeight: "500",
-  },
-
-  statsGrid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-    gap: "16px",
-    marginBottom: "24px",
-  },
-
-  statsCard: {
-    background: "#ffffff",
-    padding: "18px",
-    borderRadius: "16px",
-    boxShadow: "0 4px 15px rgba(15,23,42,0.04)",
-    display: "flex",
-    flexDirection: "column",
-    gap: "6px",
-    border: "1px solid #e2e8f0",
-  },
-
-  statsLabel: {
-    fontSize: "13px",
-    color: "#64748b",
-    fontWeight: "600",
-  },
-
-  statsValue: {
-    fontSize: "28px",
-    fontWeight: "800",
-    lineHeight: 1.2,
-  },
-
-  filterBar: {
-    display: "flex",
-    gap: "12px",
-    marginBottom: "20px",
-    flexWrap: "wrap",
-    background: "#ffffff",
-    padding: "16px",
-    borderRadius: "14px",
-    boxShadow: "0 4px 15px rgba(15,23,42,0.03)",
-    border: "1px solid #e2e8f0",
-  },
-
-  searchBox: {
-    position: "relative",
-    display: "flex",
-    alignItems: "center",
-    flex: 1,
-    minWidth: "260px",
-  },
-
-  searchIcon: {
-    position: "absolute",
-    left: "12px",
-    fontSize: "14px",
-    color: "#94a3b8",
-  },
-
-  searchInput: {
-    width: "100%",
-    padding: "10px 12px 10px 36px",
-    borderRadius: "10px",
-    border: "1px solid #dbe4f0",
-    fontSize: "13px",
-    outline: "none",
-    background: "#f8fafc",
-    color: "#0f172a",
-  },
-
-  filterSelect: {
-    padding: "10px 14px",
-    borderRadius: "10px",
-    border: "1px solid #dbe4f0",
-    fontSize: "13px",
-    background: "#f8fafc",
-    outline: "none",
-    minWidth: "180px",
-    color: "#0f172a",
-    fontWeight: "500",
-  },
-
-  tableWrapper: {
-    background: "#ffffff",
-    borderRadius: "16px",
-    overflow: "hidden",
-    border: "1px solid #e2e8f0",
-    boxShadow: "0 10px 30px rgba(15,23,42,0.04)",
-    overflowX: "auto",
-  },
-
-  table: {
-    width: "100%",
-    borderCollapse: "collapse",
-    minWidth: "1050px",
-  },
-
-  th: {
-    padding: "14px 16px",
-    background: "#f8fafc",
-    fontWeight: 600,
-    color: "#1e3a8a",
-    borderBottom: "2px solid #e2e8f0",
-    textAlign: "left",
-    fontSize: "13px",
-  },
-
-  thCenter: {
-    padding: "14px 16px",
-    background: "#f8fafc",
-    fontWeight: 600,
-    color: "#1e3a8a",
-    borderBottom: "2px solid #e2e8f0",
-    textAlign: "center",
-    fontSize: "13px",
-  },
-
-  tr: {
-    borderBottom: "1px solid #f1f5f9",
-    transition: "background-color 0.2s",
-  },
-
-  td: {
-    padding: "14px 16px",
-    color: "#334155",
-    fontSize: "13px",
-    verticalAlign: "middle",
-  },
-
-  tdCenter: {
-    padding: "14px 16px",
-    textAlign: "center",
-    verticalAlign: "middle",
-    fontSize: "13px",
-  },
-
-  fileLink: {
-    display: "inline-flex",
-    alignItems: "center",
-    gap: 4,
-    padding: "4px 8px",
-    borderRadius: "6px",
-    border: "1px solid #e2e8f0",
-    background: "#f8fafc",
-    color: "#334155",
-    fontSize: "11px",
-    fontWeight: 500,
-    textDecoration: "none",
-    transition: "all 0.2s",
-  },
-
-  scoreBadge: {
-    background: "#fef3c7",
-    color: "#d97706",
-    border: "1px solid #fde68a",
-    padding: "6px 12px",
-    borderRadius: "8px",
-    fontWeight: "700",
-    fontSize: "13px",
-  },
-
-  noScore: {
-    color: "#94a3b8",
-    fontStyle: "italic",
-  },
-
-  feedbackContainer: {
-    maxWidth: "240px",
-  },
-
-  feedbackText: {
-    margin: 0,
-    fontSize: "12px",
-    color: "#475569",
-    lineHeight: "1.5",
-    display: "-webkit-box",
-    WebkitLineClamp: 3,
-    WebkitBoxOrient: "vertical",
-    overflow: "hidden",
-    textOverflow: "ellipsis",
-  },
-
-  noFeedback: {
-    color: "#94a3b8",
-    fontStyle: "italic",
-    fontSize: "12px",
-  },
-
-  evaluateBtn: {
-    padding: "8px 14px",
-    borderRadius: "10px",
-    border: "none",
-    background: "#2563eb",
-    color: "#ffffff",
-    fontSize: "12px",
-    fontWeight: "600",
-    cursor: "pointer",
-    boxShadow: "0 2px 4px rgba(37,99,235,0.15)",
-    transition: "all 0.2s",
-    display: "inline-flex",
-    alignItems: "center",
-    gap: 4,
-  },
-
-  // Modal
-  modalOverlay: {
-    position: "fixed",
-    inset: 0,
-    background: "rgba(15,23,42,0.3)",
-    backdropFilter: "blur(4px)",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    zIndex: 2000,
-  },
-
-  modalBox: {
-    width: "100%",
-    maxWidth: "500px",
-    background: "#ffffff",
-    borderRadius: "20px",
-    boxShadow: "0 20px 50px rgba(15,23,42,0.15)",
-    overflow: "hidden",
-    animation: "modalFadeIn 0.3s ease-out",
-  },
-
-  modalHeader: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    padding: "20px 24px",
-    background: "#f8fafc",
-    borderBottom: "1px solid #e2e8f0",
-  },
-
-  closeBtn: {
-    border: "none",
-    background: "none",
-    fontSize: "18px",
-    color: "#94a3b8",
-    cursor: "pointer",
-    transition: "color 0.2s",
-  },
-
-  modalBody: {
-    padding: "24px",
-  },
-
-  studentQuickInfo: {
-    background: "#eff6ff",
-    border: "1px solid #bfdbfe",
-    borderRadius: "12px",
-    padding: "14px 18px",
-    marginBottom: "20px",
-    fontSize: "13px",
-    color: "#1e40af",
-    display: "flex",
-    flexDirection: "column",
-    gap: "6px",
-  },
-
-  formGroup: {
-    marginBottom: "18px",
-  },
-
-  formLabel: {
-    display: "block",
-    fontSize: "13px",
-    fontWeight: "600",
-    color: "#334155",
-    marginBottom: "6px",
-  },
-
-  formInput: {
-    width: "100%",
-    padding: "10px 14px",
-    borderRadius: "10px",
-    border: "1px solid #cbd5e1",
-    fontSize: "13px",
-    outline: "none",
-    boxSizing: "border-box",
-  },
-
-  formTextarea: {
-    width: "100%",
-    padding: "10px 14px",
-    borderRadius: "10px",
-    border: "1px solid #cbd5e1",
-    fontSize: "13px",
-    outline: "none",
-    boxSizing: "border-box",
-    resize: "vertical",
-  },
-
-  modalFooter: {
-    display: "flex",
-    justifyContent: "flex-end",
-    gap: "12px",
-    padding: "18px 24px",
-    background: "#f8fafc",
-    borderTop: "1px solid #e2e8f0",
-  },
-
-  modalCancelBtn: {
-    padding: "10px 18px",
-    borderRadius: "10px",
-    border: "1px solid #cbd5e1",
-    background: "#ffffff",
-    color: "#475569",
-    fontSize: "13px",
-    fontWeight: "600",
-    cursor: "pointer",
-  },
-
-  modalSaveBtn: {
-    padding: "10px 20px",
-    borderRadius: "10px",
-    border: "none",
-    background: "#16a34a",
-    color: "#ffffff",
-    fontSize: "13px",
-    fontWeight: "600",
-    cursor: "pointer",
-    boxShadow: "0 2px 4px rgba(22,163,74,0.15)",
-  },
-
-  viewReportBtn: {
-    padding: "7px 12px",
-    borderRadius: "8px",
-    border: "none",
-    background: "#f0fdf4",
-    color: "#15803d",
-    fontSize: "12px",
-    fontWeight: "600",
-    cursor: "pointer",
-    border: "1px solid #bbf7d0",
-    display: "inline-flex",
-    alignItems: "center",
-    gap: 4,
-  },
-
-  assignTopicBtn: {
-    padding: "8px 12px",
-    borderRadius: "8px",
-    border: "none",
-    background: "#2563eb",
-    color: "#fff",
-    fontSize: "12px",
-    fontWeight: "600",
-    cursor: "pointer",
-    boxShadow: "0 2px 6px rgba(37,99,235,0.25)",
-  },
-
-  untopicHeader: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    padding: "14px 16px",
-    background: "#f8fafc",
-    borderBottom: "1px solid #e2e8f0",
-  },
-
-  untopicCount: {
-    background: "#e2e8f0",
-    color: "#475569",
-    padding: "6px 10px",
-    borderRadius: "999px",
-    fontSize: 12,
-    fontWeight: 700,
-  },
-
-  reportViewCard: {
-    background: "#fff",
-    border: "1px solid #e2e8f0",
-    borderRadius: 14,
-    padding: "16px 18px",
-    boxShadow: "0 2px 8px rgba(0,0,0,0.04)",
-  },
-
-  reportViewHeader: {
-    display: "flex",
-    alignItems: "center",
-    gap: 10,
-    marginBottom: 12,
-    flexWrap: "wrap",
-  },
-
-  weekLabel: {
-    background: "linear-gradient(135deg, #2563eb, #1d4ed8)",
-    color: "#fff",
-    fontWeight: 700,
-    fontSize: 12,
-    padding: "3px 12px",
-    borderRadius: 999,
-  },
-
-  reportStatusPill: {
-    fontSize: 11,
-    fontWeight: 700,
-    padding: "3px 10px",
-    borderRadius: 999,
-  },
+  modalOverlay: { position: "fixed", inset: 0, background: "rgba(15,23,42,0.3)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 2000 },
+  modalBox: { width: "100%", maxWidth: "500px", background: "#ffffff", borderRadius: "20px", boxShadow: "0 20px 50px rgba(15,23,42,0.15)", overflow: "hidden", animation: "modalFadeIn 0.3s ease-out" },
+  modalHeader: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "20px 24px", background: "#f8fafc", borderBottom: "1px solid #e2e8f0" },
+  closeBtn: { border: "none", background: "none", fontSize: "18px", color: "#94a3b8", cursor: "pointer", transition: "color 0.2s" },
+  modalBody: { padding: "24px" },
+  studentQuickInfo: { background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: "12px", padding: "14px 18px", marginBottom: "20px", fontSize: "13px", color: "#1e40af", display: "flex", flexDirection: "column", gap: "6px" },
+  formGroup: { marginBottom: "18px" },
+  formLabel: { display: "block", fontSize: "13px", fontWeight: "600", color: "#334155", marginBottom: "6px" },
+  formInput: { width: "100%", padding: "10px 14px", borderRadius: "10px", border: "1px solid #cbd5e1", fontSize: "13px", outline: "none", boxSizing: "border-box" },
+  formTextarea: { width: "100%", padding: "10px 14px", borderRadius: "10px", border: "1px solid #cbd5e1", fontSize: "13px", outline: "none", boxSizing: "border-box", resize: "vertical" },
+  modalFooter: { display: "flex", justifyContent: "flex-end", gap: "12px", padding: "18px 24px", background: "#f8fafc", borderTop: "1px solid #e2e8f0" },
+  modalCancelBtn: { padding: "10px 18px", borderRadius: "10px", border: "1px solid #cbd5e1", background: "#ffffff", color: "#475569", fontSize: "13px", fontWeight: "600", cursor: "pointer" },
+  modalSaveBtn: { padding: "10px 20px", borderRadius: "10px", border: "none", background: "#16a34a", color: "#ffffff", fontSize: "13px", fontWeight: "600", cursor: "pointer", boxShadow: "0 2px 4px rgba(22,163,74,0.15)" },
+  viewReportBtn: { padding: "7px 12px", borderRadius: "8px", border: "none", background: "#f0fdf4", color: "#15803d", fontSize: "12px", fontWeight: "600", cursor: "pointer", border: "1px solid #bbf7d0", display: "inline-flex", alignItems: "center", gap: 4 },
+  assignTopicBtn: { padding: "8px 12px", borderRadius: "8px", border: "none", background: "#2563eb", color: "#fff", fontSize: "12px", fontWeight: "600", cursor: "pointer", boxShadow: "0 2px 6px rgba(37,99,235,0.25)" },
+  untopicHeader: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 16px", background: "#f8fafc", borderBottom: "1px solid #e2e8f0" },
+  untopicCount: { background: "#e2e8f0", color: "#475569", padding: "6px 10px", borderRadius: "999px", fontSize: 12, fontWeight: 700 },
+  reportViewCard: { background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, padding: "16px 18px", boxShadow: "0 2px 8px rgba(0,0,0,0.04)" },
+  reportViewHeader: { display: "flex", alignItems: "center", gap: 10, marginBottom: 12, flexWrap: "wrap" },
+  weekLabel: { background: "linear-gradient(135deg, #2563eb, #1d4ed8)", color: "#fff", fontWeight: 700, fontSize: 12, padding: "3px 12px", borderRadius: 999 },
+  reportStatusPill: { fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 999 },
 };

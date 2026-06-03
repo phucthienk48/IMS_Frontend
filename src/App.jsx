@@ -11,11 +11,13 @@ import Register from "./pages/auth/Register";
 // import Profile from "./pages/auth/Profile";
 import Application from "./pages/User/Application";
 import Intershiptopic from "./pages/User/Intershiptopic";
+import InternshipResult from "./pages/User/InternshipResult";
 
 import HomeAdmin from "./pages/Admin/HomeAdmin";
 import UserManagement from "./pages/Admin/UserManagement";
 import AdminApplication from "./pages/Admin/AdminApplication";
 import AdminInternshiptopic from "./pages/Admin/AdminInternshiptopic";
+import AdminStudent from "./pages/Admin/AdminStudent";
 
 // import AdminReport from "./pages/Admin/AdminReport";
 
@@ -36,11 +38,13 @@ function App() {
           {/* <Route path="/profile" element={<Profile />} /> */}
           <Route path="/topics" element={<Intershiptopic />} />
           <Route path="/application" element={<Application />} />
+          <Route path="/internship-result" element={<InternshipResult />} />
         </Route>
 
         <Route element={<AdminLayout />}>
           <Route path="/admin" element={<HomeAdmin />} />
           <Route path="/admin/users" element={<UserManagement />} />
+          <Route path="/admin/students" element={<AdminStudent />} />
           <Route path="/admin/internship" element={<AdminInternshiptopic />} />
           <Route path="/admin/application" element={<AdminApplication />} />
         </Route>

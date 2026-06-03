@@ -58,7 +58,7 @@ export default function HomeAdmin() {
     },
     {
       id: 3,
-      path: "/admin/student",
+      path: "/admin/students",
       icon: "bi-mortarboard-fill",
       title: "Quản lý sinh viên",
       desc: "Theo dõi danh sách sinh viên thực tập, tiến độ và kết quả đánh giá.",
