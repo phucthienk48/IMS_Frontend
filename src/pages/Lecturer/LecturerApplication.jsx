@@ -77,7 +77,7 @@ export default function LecturerApplication() {
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ status }),
+          body: JSON.stringify({ status, approvedBy: user._id || user.id }),
         },
       );
       const data = await res.json();
@@ -241,7 +241,7 @@ export default function LecturerApplication() {
                         style={{ marginRight: 8, color: "#1e3a8a" }}
                       />
                       Đề tài: {topic.topicname}
-                      <span style={styles.myTopicBadge}>Đề tài của tôi</span>
+                      {/* <span style={styles.myTopicBadge}>Đề tài của tôi</span> */}
                     </h3>
                     <div style={styles.groupTopicMeta}>
                       <span>
@@ -351,6 +351,12 @@ export default function LecturerApplication() {
                             >
                               {app.status}
                             </span>
+                            {app.status !== "chờ duyệt" && app.approvedBy && (
+                              <div style={{ fontSize: "12px", color: "#64748b", marginTop: "6px" }}>
+                                <i className="bi bi-person-check-fill" style={{ marginRight: 4 }}></i>
+                                {app.approvedBy.username || app.approvedBy.email || app.approvedBy}
+                              </div>
+                            )}
                           </td>
                           <td style={styles.tdCenter}>
                             <div style={styles.actionGroup}>
@@ -381,20 +387,23 @@ export default function LecturerApplication() {
                                   </button>
                                 </>
                               )}
-                              {app.status !== "chờ duyệt" && (
-                                <button
-                                  style={{
-                                    ...styles.actionBtn,
-                                    ...styles.resetBtn,
-                                  }}
-                                  onClick={() =>
-                                    handleUpdateStatus(app._id, "chờ duyệt")
-                                  }
-                                >
-                                  <i className="bi bi-arrow-counterclockwise"></i>{" "}
-                                  Đặt lại
-                                </button>
-                              )}
+                              {app.status !== "chờ duyệt" &&
+                                app.approvedBy &&
+                                (app.approvedBy._id === (user._id || user.id) ||
+                                  app.approvedBy === (user._id || user.id)) && (
+                                  <button
+                                    style={{
+                                      ...styles.actionBtn,
+                                      ...styles.resetBtn,
+                                    }}
+                                    onClick={() =>
+                                      handleUpdateStatus(app._id, "chờ duyệt")
+                                    }
+                                  >
+                                    <i className="bi bi-arrow-counterclockwise"></i>{" "}
+                                    Đặt lại
+                                  </button>
+                                )}
                             </div>
                           </td>
                         </tr>
@@ -531,6 +540,12 @@ export default function LecturerApplication() {
                           >
                             {app.status}
                           </span>
+                          {app.status !== "chờ duyệt" && app.approvedBy && (
+                            <div style={{ fontSize: "12px", color: "#64748b", marginTop: "6px" }}>
+                              <i className="bi bi-person-check-fill" style={{ marginRight: 4 }}></i>
+                              {app.approvedBy.username || app.approvedBy.email || app.approvedBy}
+                            </div>
+                          )}
                         </td>
                         <td style={styles.tdCenter}>
                           <div style={styles.actionGroup}>
@@ -560,20 +575,23 @@ export default function LecturerApplication() {
                                 </button>
                               </>
                             )}
-                            {app.status !== "chờ duyệt" && (
-                              <button
-                                style={{
-                                  ...styles.actionBtn,
-                                  ...styles.resetBtn,
-                                }}
-                                onClick={() =>
-                                  handleUpdateStatus(app._id, "chờ duyệt")
-                                }
-                              >
-                                <i className="bi bi-arrow-counterclockwise"></i>{" "}
-                                Đặt lại
-                              </button>
-                            )}
+                            {app.status !== "chờ duyệt" &&
+                              app.approvedBy &&
+                              (app.approvedBy._id === (user._id || user.id) ||
+                                app.approvedBy === (user._id || user.id)) && (
+                                <button
+                                  style={{
+                                    ...styles.actionBtn,
+                                    ...styles.resetBtn,
+                                  }}
+                                  onClick={() =>
+                                    handleUpdateStatus(app._id, "chờ duyệt")
+                                  }
+                                >
+                                  <i className="bi bi-arrow-counterclockwise"></i>{" "}
+                                  Đặt lại
+                                </button>
+                              )}
                           </div>
                         </td>
                       </tr>
@@ -748,7 +766,8 @@ const styles = {
 
   groupTopicTitle: {
     margin: 0,
-    fontSize: "22px",
+    fontFamily: '"Times New Roman", Times, serif',
+    fontSize: "24px",
     fontWeight: "800",
     color: "#0f172a",
     display: "flex",

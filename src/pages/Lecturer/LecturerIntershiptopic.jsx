@@ -155,6 +155,38 @@ export default function LecturerIntershiptopic() {
     }
   };
 
+  const handleToggleStatus = async (id, currentStatus) => {
+    const newStatus = currentStatus === "open" ? "closed" : "open";
+    const confirmMessage =
+      newStatus === "closed"
+        ? "Bạn có muốn đóng đăng ký đề tài này?"
+        : "Bạn có muốn mở lại đăng ký đề tài này?";
+    if (!window.confirm(confirmMessage)) return;
+
+    try {
+      const res = await fetch(`${API_BASE}/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: newStatus }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Thay đổi trạng thái thất bại");
+      setTopics((prev) =>
+        prev.map((topic) =>
+          topic._id === id ? { ...topic, status: newStatus } : topic
+        )
+      );
+      alert(
+        newStatus === "closed"
+          ? "Đã đóng đề tài thành công."
+          : "Đã mở lại đề tài thành công."
+      );
+    } catch (err) {
+      console.error(err);
+      alert(err.message || "Không thể thay đổi trạng thái đề tài.");
+    }
+  };
+
   const filteredTopics = topics.filter((topic) => {
     const query = search.toLowerCase();
     return (
@@ -229,6 +261,25 @@ export default function LecturerIntershiptopic() {
           color: #991b1b; background: #fee2e2;
           font-weight: 700; font-size: 12px;
           border: 1px solid #fecaca;
+        }
+
+        .lit-status-btn-close {
+          background: linear-gradient(135deg, #f59e0b, #d97706) !important;
+          box-shadow: 0 4px 12px rgba(245,158,11,0.2) !important;
+        }
+        .lit-status-btn-close:hover {
+          background: linear-gradient(135deg, #d97706, #b45309) !important;
+          transform: translateY(-1px);
+          box-shadow: 0 8px 20px rgba(245,158,11,0.35) !important;
+        }
+        .lit-status-btn-open {
+          background: linear-gradient(135deg, #10b981, #059669) !important;
+          box-shadow: 0 4px 12px rgba(16,185,129,0.2) !important;
+        }
+        .lit-status-btn-open:hover {
+          background: linear-gradient(135deg, #059669, #047857) !important;
+          transform: translateY(-1px);
+          box-shadow: 0 8px 20px rgba(16,185,129,0.35) !important;
         }
       `}</style>
 
@@ -555,6 +606,15 @@ export default function LecturerIntershiptopic() {
                       </td>
                       <td style={{ ...styles.td, textAlign: "center" }}>
                         <div style={styles.actionGroup}>
+                          <button
+                            className={`lit-status-btn ${topic.status === "open" ? "lit-status-btn-close" : "lit-status-btn-open"}`}
+                            style={styles.statusBtn}
+                            onClick={() => handleToggleStatus(topic._id, topic.status)}
+                            title={topic.status === "open" ? "Đóng đề tài" : "Mở đề tài"}
+                          >
+                            <i className={`bi ${topic.status === "open" ? "bi-lock-fill" : "bi-unlock-fill"}`}></i>
+                            {topic.status === "open" ? "Đóng" : "Mở"}
+                          </button>
                           <button
                             className="lit-edit-btn"
                             style={styles.editBtn}
@@ -1089,6 +1149,20 @@ const styles = {
     fontSize: 12,
     cursor: "pointer",
     boxShadow: "0 4px 12px rgba(239,68,68,0.2)",
+    transition: "all 0.22s ease",
+    fontFamily: "'Inter', sans-serif",
+  },
+  statusBtn: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 5,
+    padding: "8px 14px",
+    borderRadius: 10,
+    border: "none",
+    color: "#fff",
+    fontWeight: 700,
+    fontSize: 12,
+    cursor: "pointer",
     transition: "all 0.22s ease",
     fontFamily: "'Inter', sans-serif",
   },
