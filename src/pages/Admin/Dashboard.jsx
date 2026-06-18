@@ -27,6 +27,7 @@ export default function Dashboard() {
     { path: "/admin/users", icon: "bi-people-fill", label: "Quản lý tài khoản" },
     { path: "/admin/students", icon: "bi-mortarboard-fill", label: "Quản lý sinh viên" },
     { path: "/admin/internship", icon: "bi-book-fill", label: "Quản lý đề tài" },
+    { path: "/admin/internship-center", icon: "bi-building-gear", label: "Trung tâm thực tập" },
     { path: "/admin/application", icon: "bi-file-earmark-text-fill", label: "Quản lý hồ sơ" },
   ];
 

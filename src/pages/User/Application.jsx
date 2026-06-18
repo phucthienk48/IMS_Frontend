@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
+import ActionMenu from "../../components/ActionMenu";
 import DocumentExportModal from "../../components/DocumentExportModal";
+import Pagination from "../../components/Pagination";
 import {
   defaultInternshipCenter,
   fetchInternshipCenter,
@@ -9,6 +11,24 @@ import {
 import { fetchProgressData } from "../../utils/progressData";
 
 const API = "http://localhost:5000";
+
+const initialFreeForm = (user = {}) => ({
+  fullName: user.username || "",
+  email: user.email || "",
+  sdt: "",
+  studentCode: "",
+  classCode: "",
+  major: "",
+  course: "",
+  note: "",
+});
+
+const initialFreeFiles = {
+  cvFile: null,
+  transcriptFile: null,
+  citizenIdFrontFile: null,
+  citizenIdBackFile: null,
+};
 
 const REPORT_STATUS_STYLE = {
   "chờ duyệt": { background: "#fef3c7", color: "#92400e", border: "1px solid #fde68a" },
@@ -39,8 +59,12 @@ const reportDateRange = (report) => {
 
 const validateInternshipForm = (form) => {
   if (!form.fullName?.trim()) return "Vui lòng nhập họ tên sinh viên.";
+  if (!form.email?.trim()) return "Vui lòng nhập email.";
+  if (!form.sdt?.trim()) return "Vui lòng nhập số điện thoại.";
   if (!form.studentCode?.trim()) return "Vui lòng nhập mã số sinh viên.";
+  if (!form.classCode?.trim()) return "Vui lòng nhập mã lớp.";
   if (!form.major?.trim()) return "Vui lòng nhập chuyên ngành.";
+  if (!form.course?.trim()) return "Vui lòng nhập khóa học.";
   return "";
 };
 
@@ -53,6 +77,12 @@ export default function Application() {
   const [editModal, setEditModal] = useState(null); // application being edited
   const [editForm, setEditForm] = useState({});
   const [saving, setSaving] = useState(false);
+  const [freeModal, setFreeModal] = useState(false);
+  const [freeForm, setFreeForm] = useState(() => initialFreeForm(user || {}));
+  const [freeFiles, setFreeFiles] = useState(initialFreeFiles);
+  const [submittingFree, setSubmittingFree] = useState(false);
+  const [page, setPage] = useState(1);
+  const pageSize = 5;
 
   // ── Báo cáo tiến độ ─────────────────────────────────────────────────────────
   const [reportModal, setReportModal] = useState(null); // application đang xem báo cáo
@@ -212,13 +242,78 @@ export default function Application() {
     }
   };
 
+  const uploadFile = async (file) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    const res = await axios.post(`${API}/api/upload`, formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+    return res.data.filePath || res.data.path || res.data;
+  };
+
+  const handleFreeChange = (e) => {
+    const { name, value } = e.target;
+    setFreeForm((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleFreeFileChange = (e) => {
+    const { name, files } = e.target;
+    setFreeFiles((prev) => ({ ...prev, [name]: files[0] || null }));
+  };
+
+  const resetFreeForm = () => {
+    setFreeModal(false);
+    setFreeForm(initialFreeForm(user || {}));
+    setFreeFiles(initialFreeFiles);
+  };
+
+  const handleCreateFreeApplication = async () => {
+    const validationError = validateInternshipForm(freeForm);
+    if (validationError) return alert(validationError);
+    if (!freeFiles.cvFile) return alert("Vui lòng tải lên CV.");
+    if (!freeFiles.transcriptFile) return alert("Vui lòng tải lên bảng điểm.");
+    if (!freeFiles.citizenIdFrontFile) return alert("Vui lòng tải lên ảnh CCCD mặt trước.");
+    if (!freeFiles.citizenIdBackFile) return alert("Vui lòng tải lên ảnh CCCD mặt sau.");
+
+    setSubmittingFree(true);
+    try {
+      const [cvPath, transcriptPath, frontPath, backPath] = await Promise.all([
+        uploadFile(freeFiles.cvFile),
+        uploadFile(freeFiles.transcriptFile),
+        uploadFile(freeFiles.citizenIdFrontFile),
+        uploadFile(freeFiles.citizenIdBackFile),
+      ]);
+
+      const res = await axios.post(`${API}/api/application`, {
+        ...freeForm,
+        student: id_user,
+        cvFile: cvPath,
+        transcriptFile: transcriptPath,
+        citizenIdFrontFile: frontPath,
+        citizenIdBackFile: backPath,
+      });
+
+      setApplications((prev) => [res.data.data, ...prev]);
+      resetFreeForm();
+      alert("Đã nộp hồ sơ tự do. Bạn có thể cập nhật đề tài sau khi được hướng dẫn.");
+    } catch (error) {
+      alert(error.response?.data?.message || error.message || "Nộp hồ sơ thất bại.");
+    } finally {
+      setSubmittingFree(false);
+    }
+  };
+
   // ── Xóa hồ sơ ──────────────────────────────────────────────────────────────
-  const handleDelete = async (id) => {
+  const handleDelete = async (item) => {
+    if (item.status === "đã duyệt") {
+      alert("Hồ sơ đã duyệt, không thể xóa.");
+      return;
+    }
     if (!window.confirm("Bạn có muốn xóa hồ sơ này?")) return;
 
     try {
-      await axios.delete(`${API}/api/application/${id}`);
-      setApplications((prev) => prev.filter((item) => item._id !== id));
+      await axios.delete(`${API}/api/application/${item._id}`);
+      setApplications((prev) => prev.filter((app) => app._id !== item._id));
     } catch (error) {
       console.error(error);
       alert("Xóa thất bại. Vui lòng thử lại.");
@@ -230,9 +325,12 @@ export default function Application() {
     setEditModal(item);
     setEditForm({
       fullName: item.fullName || "",
+      email: item.email || user?.email || "",
+      sdt: item.sdt || "",
       studentCode: item.studentCode || "",
       major: item.major || "",
       classCode: item.classCode || "",
+      course: item.course || "",
     });
   };
 
@@ -268,7 +366,13 @@ export default function Application() {
     pending: applications.filter((a) => a.status === "chờ duyệt").length,
     approved: applications.filter((a) => a.status === "đã duyệt").length,
     rejected: applications.filter((a) => a.status === "từ chối").length,
+    withTopic: applications.filter((a) => a.topic).length,
+    free: applications.filter((a) => !a.topic).length,
   };
+  const approvalRate = stats.total ? Math.round((stats.approved / stats.total) * 100) : 0;
+  const totalPages = Math.max(1, Math.ceil(applications.length / pageSize));
+  const currentPage = Math.min(page, totalPages);
+  const pagedApplications = applications.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
   // ── Badge trạng thái ────────────────────────────────────────────────────────
   const getBadgeStyle = (status) => {
@@ -346,9 +450,14 @@ export default function Application() {
             hồ sơ đã nộp, báo cáo tiến độ và biểu mẫu thực tập của bạn
           </p>
         </div>
-        <button style={styles.createBtn} onClick={() => navigate("/topics")}>
-          <i className="bi bi-plus-circle-fill" /> Chọn đề tài để nộp hồ sơ
-        </button>
+        <div style={styles.headerActions}>
+          <button style={styles.secondaryBtn} onClick={() => setFreeModal(true)}>
+            <i className="bi bi-file-earmark-plus" /> Nộp hồ sơ tự do
+          </button>
+          <button style={styles.createBtn} onClick={() => navigate("/topics")}>
+            <i className="bi bi-journal-plus" /> Nộp theo đề tài
+          </button>
+        </div>
       </div>
 
       {/* ── Thống kê ── */}
@@ -357,40 +466,31 @@ export default function Application() {
           {
             label: "Tổng hồ sơ",
             value: stats.total,
-            color: "#2563eb",
-            bg: "#eff6ff",
+            hint: `${stats.withTopic} theo đề tài, ${stats.free} tự do`,
           },
           {
             label: "Chờ duyệt",
             value: stats.pending,
-            color: "#d97706",
-            bg: "#fffbeb",
+            hint: "Cần theo dõi phản hồi",
           },
           {
             label: "Đã duyệt",
             value: stats.approved,
-            color: "#16a34a",
-            bg: "#f0fdf4",
+            hint: `${approvalRate}% trên tổng hồ sơ`,
           },
           {
             label: "Từ chối",
             value: stats.rejected,
-            color: "#dc2626",
-            bg: "#fef2f2",
+            hint: "Cần nộp lại hoặc bổ sung",
           },
         ].map((s, i) => (
           <div
             key={i}
-            style={{
-              ...styles.statsCard,
-              background: s.bg,
-              borderTop: `4px solid ${s.color}`,
-            }}
+            style={styles.statsCard}
           >
             <span style={styles.statsLabel}>{s.label}</span>
-            <span style={{ ...styles.statsValue, color: s.color }}>
-              {s.value}
-            </span>
+            <span style={styles.statsValue}>{s.value}</span>
+            <span style={styles.statsHint}>{s.hint}</span>
           </div>
         ))}
       </div>
@@ -405,13 +505,18 @@ export default function Application() {
           <p style={{ marginTop: 12, color: "#64748b", fontSize: 16 }}>
             Bạn chưa có hồ sơ nào.
           </p>
-          <button style={styles.createBtn} onClick={() => navigate("/topics")}>
-            <i className="bi bi-plus-circle-fill" /> Chọn đề tài để nộp hồ sơ
-          </button>
+          <div style={styles.headerActions}>
+            <button style={styles.secondaryBtn} onClick={() => setFreeModal(true)}>
+              <i className="bi bi-file-earmark-plus" /> Nộp hồ sơ tự do
+            </button>
+            <button style={styles.createBtn} onClick={() => navigate("/topics")}>
+              <i className="bi bi-journal-plus" /> Nộp theo đề tài
+            </button>
+          </div>
         </div>
       ) : (
         <div style={styles.cardGrid}>
-          {applications.map((item) => (
+          {pagedApplications.map((item) => (
             <div key={item._id} style={styles.card}>
               {/* Card Header */}
               <div style={styles.cardHeader}>
@@ -435,6 +540,9 @@ export default function Application() {
 
               {/* Card Body */}
               <div style={styles.cardBody}>
+                <InfoRow icon="bi-envelope" label="Email" value={item.email} />
+                <InfoRow icon="bi-telephone" label="Số điện thoại" value={item.sdt} />
+                <InfoRow icon="bi-people" label="Lớp / Khóa" value={[item.classCode, item.course].filter(Boolean).join(" - ")} />
                 {item.topic ? (
                   <>
                     <InfoRow
@@ -601,52 +709,110 @@ export default function Application() {
 
               {/* Actions */}
               <div style={styles.cardFooter}>
-                <button
-                  style={{ ...styles.actionBtn, ...styles.editBtn }}
-                  onClick={() => openEdit(item)}
-                  disabled={item.status === "đã duyệt"}
-                  title={
-                    item.status === "đã duyệt"
-                      ? "Hồ sơ đã duyệt, không thể chỉnh sửa"
-                      : ""
-                  }
-                >
-                  <i className="bi bi-pencil-fill" /> Sửa
-                </button>
-                {item.status === "đã duyệt" && (
-                  <>
-                    <button
-                      style={{ ...styles.actionBtn, ...styles.reportBtn }}
-                      onClick={() => openReportModal(item)}
-                      title="Xem và nộp báo cáo tiến độ theo tuần"
-                    >
-                      <i className="bi bi-clipboard-data" /> Báo cáo tiến độ
-                    </button>
-                    <button
-                      style={{ ...styles.actionBtn, ...styles.documentBtn }}
-                      onClick={() => openDocumentModal(item)}
-                      title="Xuất 3 biểu mẫu Word"
-                    >
-                      <i className="bi bi-file-earmark-word-fill" /> Biểu mẫu
-                    </button>
-                  </>
-                )}
-                <button
-                  style={{ ...styles.actionBtn, ...styles.deleteBtn }}
-                  onClick={() => handleDelete(item._id)}
-                >
-                  <i className="bi bi-trash3-fill" /> Xóa
-                </button>
+                <ActionMenu
+                  items={[
+                    { label: "Sửa hồ sơ", icon: "bi-pencil-fill", onClick: () => openEdit(item) },
+                    item.status === "đã duyệt" && {
+                      label: "Báo cáo tiến độ",
+                      icon: "bi-clipboard-data",
+                      onClick: () => openReportModal(item),
+                    },
+                    item.status === "đã duyệt" && {
+                      label: "Biểu mẫu Word",
+                      icon: "bi-file-earmark-word-fill",
+                      onClick: () => openDocumentModal(item),
+                    },
+                    {
+                      label: "Xóa hồ sơ",
+                      icon: "bi-trash3-fill",
+                      variant: "danger",
+                      onClick: () => handleDelete(item),
+                      disabled: item.status === "đã duyệt",
+                      title: item.status === "đã duyệt" ? "Hồ sơ đã duyệt, không thể xóa" : "",
+                    },
+                  ]}
+                />
               </div>
             </div>
           ))}
+          <Pagination
+            page={currentPage}
+            total={applications.length}
+            pageSize={pageSize}
+            onChange={setPage}
+          />
         </div>
+      )}
+
+      {freeModal && (
+        <ModalOverlay onClose={resetFreeForm}>
+          <div style={{ ...styles.editBox, maxWidth: 980 }}>
+            <div style={styles.editHeader}>
+              <div>
+                <h4 style={{ margin: 0, color: "#083c73" }}>
+                  <i className="bi bi-file-earmark-plus" /> Nộp hồ sơ thực tập tự do
+                </h4>
+                <p style={{ margin: "4px 0 0", color: "#64748b", fontSize: 13 }}>
+                  Dành cho sinh viên chưa chọn đề tài, giảng viên hoặc admin có thể gán đề tài sau.
+                </p>
+              </div>
+              <button style={styles.closeBtn} onClick={resetFreeForm}>✕</button>
+            </div>
+
+            <div style={styles.editBody}>
+              <div style={styles.formSectionGrid}>
+                <section style={styles.formPanelWide}>
+                  <h5 style={styles.formSectionHeading}>Thông tin sinh viên</h5>
+                  <div style={styles.compactFormGrid}>
+                    <FormField label="Họ và tên" name="fullName" value={freeForm.fullName} onChange={handleFreeChange} />
+                    <FormField label="Email" name="email" value={freeForm.email} onChange={handleFreeChange} />
+                    <FormField label="Số điện thoại" name="sdt" value={freeForm.sdt} onChange={handleFreeChange} />
+                    <FormField label="Mã số sinh viên" name="studentCode" value={freeForm.studentCode} onChange={handleFreeChange} />
+                    <FormField label="Mã lớp" name="classCode" value={freeForm.classCode} onChange={handleFreeChange} />
+                    <FormField label="Chuyên ngành" name="major" value={freeForm.major} onChange={handleFreeChange} />
+                    <FormField label="Khóa học" name="course" value={freeForm.course} onChange={handleFreeChange} />
+                  </div>
+                </section>
+
+                <section style={styles.formPanel}>
+                  <h5 style={styles.formSectionHeading}>Tệp hồ sơ</h5>
+                  <div style={styles.fileFormGrid}>
+                    <FileField label="CV" name="cvFile" accept=".pdf,.doc,.docx" file={freeFiles.cvFile} onChange={handleFreeFileChange} />
+                    <FileField label="Bảng điểm" name="transcriptFile" accept=".pdf,.jpg,.jpeg,.png" file={freeFiles.transcriptFile} onChange={handleFreeFileChange} />
+                    <FileField label="CCCD mặt trước" name="citizenIdFrontFile" accept=".jpg,.jpeg,.png" file={freeFiles.citizenIdFrontFile} onChange={handleFreeFileChange} />
+                    <FileField label="CCCD mặt sau" name="citizenIdBackFile" accept=".jpg,.jpeg,.png" file={freeFiles.citizenIdBackFile} onChange={handleFreeFileChange} />
+                  </div>
+                </section>
+
+                <section style={styles.formPanel}>
+                  <h5 style={styles.formSectionHeading}>Ghi chú</h5>
+                  <textarea
+                    name="note"
+                    value={freeForm.note}
+                    onChange={handleFreeChange}
+                    style={{ ...styles.formInput, minHeight: 132, resize: "vertical" }}
+                    placeholder="Thông tin mong muốn thực tập, kỹ năng, định hướng hoặc ghi chú cho giảng viên..."
+                  />
+                </section>
+              </div>
+            </div>
+
+            <div style={styles.editFooter}>
+              <button style={styles.cancelBtn} onClick={resetFreeForm} disabled={submittingFree}>
+                Hủy
+              </button>
+              <button style={{ ...styles.actionBtn, ...styles.saveBtn, flex: "0 0 auto" }} onClick={handleCreateFreeApplication} disabled={submittingFree}>
+                <i className="bi bi-send-fill" /> {submittingFree ? "Đang nộp..." : "Nộp hồ sơ"}
+              </button>
+            </div>
+          </div>
+        </ModalOverlay>
       )}
 
       {/* ── Modal Sửa hồ sơ ── */}
       {editModal && (
         <ModalOverlay onClose={() => setEditModal(null)}>
-          <div style={styles.editBox}>
+          <div style={{ ...styles.editBox, maxWidth: 920 }}>
             <div style={styles.editHeader}>
               <h4 style={{ margin: 0, color: "#083c73" }}>
                 <i className="bi bi-pencil-square" /> Chỉnh sửa hồ sơ thực tập
@@ -679,35 +845,18 @@ export default function Application() {
                 </div>
               )}
 
-              <h5 style={{ fontWeight: 700, color: "#083c73", borderBottom: "2px solid #f29111", paddingBottom: "5px", marginBottom: "15px" }}>
-                1. Thông tin sinh viên
-              </h5>
-              <div style={styles.formGrid}>
-                <FormField
-                  label="Họ và tên"
-                  name="fullName"
-                  value={editForm.fullName}
-                  onChange={handleEditChange}
-                />
-                <FormField
-                  label="Mã số sinh viên"
-                  name="studentCode"
-                  value={editForm.studentCode}
-                  onChange={handleEditChange}
-                />
-                <FormField
-                  label="Mã lớp"
-                  name="classCode"
-                  value={editForm.classCode}
-                  onChange={handleEditChange}
-                />
-                <FormField
-                  label="Chuyên ngành"
-                  name="major"
-                  value={editForm.major}
-                  onChange={handleEditChange}
-                />
-              </div>
+              <section style={styles.formPanelWide}>
+                <h5 style={styles.formSectionHeading}>Thông tin sinh viên</h5>
+                <div style={styles.compactFormGrid}>
+                  <FormField label="Họ và tên" name="fullName" value={editForm.fullName} onChange={handleEditChange} />
+                  <FormField label="Email" name="email" value={editForm.email} onChange={handleEditChange} />
+                  <FormField label="Số điện thoại" name="sdt" value={editForm.sdt} onChange={handleEditChange} />
+                  <FormField label="Mã số sinh viên" name="studentCode" value={editForm.studentCode} onChange={handleEditChange} />
+                  <FormField label="Mã lớp" name="classCode" value={editForm.classCode} onChange={handleEditChange} />
+                  <FormField label="Chuyên ngành" name="major" value={editForm.major} onChange={handleEditChange} />
+                  <FormField label="Khóa học" name="course" value={editForm.course} onChange={handleEditChange} />
+                </div>
+              </section>
 
               <div
                 style={{
@@ -1012,6 +1161,22 @@ function FormField({ label, name, value, onChange, type = "text" }) {
   );
 }
 
+function FileField({ label, name, accept, file, onChange }) {
+  return (
+    <label style={styles.fileUploadBox}>
+      <span style={styles.formLabel}>{label}</span>
+      <strong style={styles.fileName}>{file?.name || "Chưa chọn tệp"}</strong>
+      <input
+        type="file"
+        name={name}
+        accept={accept}
+        onChange={onChange}
+        style={styles.fileInput}
+      />
+    </label>
+  );
+}
+
 function ModalOverlay({ children, onClose }) {
   return (
     <div style={styles.modalOverlay} onClick={onClose}>
@@ -1106,6 +1271,27 @@ const styles = {
     boxShadow: "none",
     transition: "0.2s",
   },
+  secondaryBtn: {
+    padding: "10px 18px",
+    background: "#ffffff",
+    color: "#083c73",
+    border: "1px solid #9fb0c6",
+    borderRadius: 8,
+    cursor: "pointer",
+    fontWeight: 700,
+    fontSize: 14,
+    display: "flex",
+    alignItems: "center",
+    gap: 8,
+    boxShadow: "none",
+  },
+  headerActions: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "flex-end",
+    gap: 10,
+    flexWrap: "wrap",
+  },
 
   statsGrid: {
     display: "grid",
@@ -1134,6 +1320,11 @@ const styles = {
     fontSize: 24,
     fontWeight: 800,
   },
+  statsHint: {
+    color: "#64748b",
+    fontSize: 12,
+    fontWeight: 600,
+  },
 
   emptyBox: {
     textAlign: "center",
@@ -1148,9 +1339,9 @@ const styles = {
   },
 
   cardGrid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fill, minmax(340px, 1fr))",
-    gap: 20,
+    display: "flex",
+    flexDirection: "column",
+    gap: 14,
   },
 
   card: {
@@ -1158,9 +1349,9 @@ const styles = {
     borderRadius: 8,
     boxShadow: "0 1px 2px rgba(15,23,42,0.06)",
     border: "1px solid #d7dee8",
-    overflow: "hidden",
-    display: "flex",
-    flexDirection: "column",
+    overflow: "visible",
+    display: "grid",
+    gridTemplateColumns: "280px minmax(0, 1fr) 150px",
     transition: "box-shadow 0.2s, transform 0.2s",
   },
 
@@ -1168,8 +1359,8 @@ const styles = {
     display: "flex",
     alignItems: "center",
     gap: 12,
-    padding: "18px 20px 14px",
-    borderBottom: "1px solid #f1f5f9",
+    padding: "18px 20px",
+    borderRight: "1px solid #f1f5f9",
     background: "#f8fafc",
   },
 
@@ -1213,11 +1404,11 @@ const styles = {
   },
 
   cardBody: {
-    padding: "16px 20px",
+    padding: "16px 18px",
     flex: 1,
-    display: "flex",
-    flexDirection: "column",
-    gap: 8,
+    display: "grid",
+    gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+    gap: "8px 14px",
   },
 
   infoRow: {
@@ -1272,10 +1463,12 @@ const styles = {
   cardFooter: {
     display: "flex",
     gap: 10,
-    padding: "14px 20px",
-    borderTop: "1px solid #f1f5f9",
+    padding: "16px",
+    borderLeft: "1px solid #f1f5f9",
     background: "#f8fafc",
     flexWrap: "wrap",
+    alignItems: "center",
+    justifyContent: "center",
   },
 
   actionBtn: {
@@ -1548,6 +1741,65 @@ const styles = {
     display: "grid",
     gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))",
     gap: 14,
+  },
+  formSectionGrid: {
+    display: "grid",
+    gridTemplateColumns: "minmax(0, 1.5fr) minmax(260px, 0.8fr)",
+    gap: 16,
+    alignItems: "start",
+  },
+  formPanelWide: {
+    gridColumn: "span 1",
+    border: "1px solid #d7dee8",
+    borderRadius: 8,
+    padding: 16,
+    background: "#ffffff",
+  },
+  formPanel: {
+    border: "1px solid #d7dee8",
+    borderRadius: 8,
+    padding: 16,
+    background: "#ffffff",
+  },
+  formSectionHeading: {
+    margin: "0 0 12px",
+    color: "#083c73",
+    fontSize: 14,
+    fontWeight: 800,
+    borderBottom: "1px solid #e2e8f0",
+    paddingBottom: 8,
+  },
+  compactFormGrid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+    gap: 12,
+  },
+  fileFormGrid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+    gap: 10,
+  },
+  fileUploadBox: {
+    border: "1px dashed #aeb9c9",
+    borderRadius: 8,
+    padding: "10px 12px",
+    background: "#f8fafc",
+    display: "flex",
+    flexDirection: "column",
+    gap: 7,
+  },
+  fileName: {
+    color: "#334155",
+    fontSize: 12,
+    minHeight: 18,
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+  },
+  fileInput: {
+    width: "100%",
+    color: "#475569",
+    fontSize: 12,
   },
 
   formLabel: {

@@ -1,6 +1,6 @@
 export default function Footer() {
   return (
-    <footer style={styles.footer}>
+    <footer className="ims-footer" style={styles.footer}>
       <div style={styles.container}>
         <div style={styles.brandBlock}>
           <div style={styles.kicker}>CUSC</div>

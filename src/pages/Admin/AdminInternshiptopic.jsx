@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import ActionMenu from "../../components/ActionMenu";
+import Pagination from "../../components/Pagination";
 import {
   defaultInternshipCenter,
   fetchInternshipCenter,
@@ -11,6 +13,8 @@ export default function AdminInternshiptopic() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [center, setCenter] = useState(defaultInternshipCenter);
+  const [page, setPage] = useState(1);
+  const pageSize = 8;
 
   const fetchTopics = async () => {
     try {
@@ -30,6 +34,10 @@ export default function AdminInternshiptopic() {
     fetchInternshipCenter("http://localhost:5000").then(setCenter);
   }, []);
 
+  useEffect(() => {
+    setPage(1);
+  }, [search]);
+
   const handleToggleStatus = async (id, currentStatus) => {
     const newStatus = currentStatus === "open" ? "closed" : "open";
     try {
@@ -42,7 +50,7 @@ export default function AdminInternshiptopic() {
       if (!res.ok) throw new Error(data.message || "Cập nhật thất bại");
       setTopics((prev) =>
         prev.map((topic) =>
-          topic._id === id ? { ...topic, status: newStatus } : topic,
+          topic._id === id ? { ...topic, ...data.data } : topic,
         ),
       );
     } catch (err) {
@@ -75,6 +83,9 @@ export default function AdminInternshiptopic() {
       topic.lecturer?.username?.toLowerCase().includes(query)
     );
   });
+  const totalPages = Math.max(1, Math.ceil(filteredTopics.length / pageSize));
+  const currentPage = Math.min(page, totalPages);
+  const pagedTopics = filteredTopics.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
   const formatDate = (value) => {
     if (!value) return "Chưa cập nhật";
@@ -83,6 +94,24 @@ export default function AdminInternshiptopic() {
       ? "Chưa cập nhật"
       : date.toLocaleDateString("vi-VN");
   };
+
+  const renderTopicActions = (topic) => (
+    <ActionMenu
+      items={[
+        {
+          label: topic.status === "open" ? "Đóng đăng ký" : "Mở đăng ký",
+          icon: topic.status === "open" ? "bi-lock" : "bi-unlock",
+          onClick: () => handleToggleStatus(topic._id, topic.status),
+        },
+        {
+          label: "Xóa đề tài",
+          icon: "bi-trash-fill",
+          variant: "danger",
+          onClick: () => handleDelete(topic._id),
+        },
+      ]}
+    />
+  );
 
   if (loading) {
     return (
@@ -223,6 +252,7 @@ export default function AdminInternshiptopic() {
                   <th style={styles.th}>Đề tài</th>
                   <th style={styles.th}>Giảng viên</th>
                   <th style={styles.th}>Trung tâm tiếp nhận</th>
+                  <th style={styles.th}>Sinh viên</th>
                   <th style={styles.th}>Thời gian</th>
                   <th style={styles.th}>Điều kiện</th>
                   <th style={{ ...styles.th, textAlign: "center" }}>
@@ -236,7 +266,7 @@ export default function AdminInternshiptopic() {
               <tbody>
                 {filteredTopics.length === 0 ? (
                   <tr>
-                    <td colSpan="7" style={styles.emptyCell}>
+                    <td colSpan="8" style={styles.emptyCell}>
                       <div style={styles.emptyState}>
                         <i
                           className="bi bi-journal-x"
@@ -251,7 +281,7 @@ export default function AdminInternshiptopic() {
                     </td>
                   </tr>
                 ) : (
-                  filteredTopics.map((topic) => (
+                  pagedTopics.map((topic) => (
                     <tr
                       key={topic._id}
                       className="ait-row"
@@ -277,6 +307,16 @@ export default function AdminInternshiptopic() {
                         </div>
                         <div style={styles.mutedText}>
                           Cán bộ: {topic.lecturer?.username || "Chưa rõ"}
+                        </div>
+                      </td>
+                      <td style={styles.td}>
+                        <span style={styles.quantityBadge}>
+                          {topic.acceptedCount || 0}/{topic.quantity || 1}
+                        </span>
+                        <div style={styles.mutedText}>
+                          {topic.remainingSlots > 0
+                            ? `Còn ${topic.remainingSlots} chỗ`
+                            : "Đã đủ sinh viên"}
                         </div>
                       </td>
                       <td style={styles.td}>
@@ -347,40 +387,7 @@ export default function AdminInternshiptopic() {
                         )}
                       </td>
                       <td style={{ ...styles.td, textAlign: "center" }}>
-                        <div style={styles.actionGroup}>
-                          <button
-                            className="ait-toggle-btn"
-                            style={{
-                              ...styles.toggleBtn,
-                              background:
-                                topic.status === "open"
-                                  ? "#d97706"
-                                  : "#15803d",
-                            }}
-                            onClick={() =>
-                              handleToggleStatus(topic._id, topic.status)
-                            }
-                            title={
-                              topic.status === "open"
-                                ? "Đóng đề tài"
-                                : "Mở lại đề tài"
-                            }
-                          >
-                            <i
-                              className={`bi ${topic.status === "open" ? "bi-lock" : "bi-unlock"}`}
-                            ></i>
-                            {topic.status === "open" ? "Đóng" : "Mở"}
-                          </button>
-                          <button
-                            className="ait-delete-btn"
-                            style={styles.deleteBtn}
-                            onClick={() => handleDelete(topic._id)}
-                            title="Xoá đề tài"
-                          >
-                            <i className="bi bi-trash-fill"></i>
-                            Xóa
-                          </button>
-                        </div>
+                        {renderTopicActions(topic)}
                       </td>
                     </tr>
                   ))
@@ -388,6 +395,7 @@ export default function AdminInternshiptopic() {
               </tbody>
             </table>
           </div>
+          <Pagination page={currentPage} total={filteredTopics.length} pageSize={pageSize} onChange={setPage} />
         </div>
       </div>
     </>

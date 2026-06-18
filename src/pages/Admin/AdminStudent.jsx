@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import ActionMenu from "../../components/ActionMenu";
 import DocumentExportModal from "../../components/DocumentExportModal";
+import Pagination from "../../components/Pagination";
 import { fetchProgressData } from "../../utils/progressData";
 import {
   buildAssignmentRows,
@@ -55,6 +57,9 @@ export default function AdminStudent() {
   const [documentReports, setDocumentReports] = useState([]);
   const [documentAssignments, setDocumentAssignments] = useState([]);
   const [documentLoading, setDocumentLoading] = useState(false);
+  const [studentPage, setStudentPage] = useState(1);
+  const [untopicPage, setUntopicPage] = useState(1);
+  const pageSize = 8;
 
   const openDetailModal = (app) => {
     setViewingDetailApp(app);
@@ -108,7 +113,9 @@ export default function AdminStudent() {
     return !app.topic;
   });
 
-  const adminTopics = topics;
+  const adminTopics = topics.filter(
+    (topic) => topic.status === "open" && (topic.remainingSlots === undefined || topic.remainingSlots > 0),
+  );
 
   const filteredStudents = adminStudents.filter((student) => {
     // Exclude students who don't have an assigned topic — they should appear only
@@ -130,6 +137,8 @@ export default function AdminStudent() {
     total: adminStudents.length,
     interning: adminStudents.filter((s) => (s.internshipStatus || "đang thực tập") === "đang thực tập").length,
     completed: adminStudents.filter((s) => s.internshipStatus === "đã hoàn thành").length,
+    withoutTopic: studentsWithoutTopic.length,
+    graded: adminStudents.filter((s) => s.score !== null && s.score !== undefined).length,
     averageScore: (() => {
       const gradedStudents = adminStudents.filter((s) => s.score !== null && s.score !== undefined);
       if (gradedStudents.length === 0) return "---";
@@ -250,6 +259,48 @@ export default function AdminStudent() {
       setWeeklyLoading(false);
     }
   };
+  const studentTotalPages = Math.max(1, Math.ceil(filteredStudents.length / pageSize));
+  const currentStudentPage = Math.min(studentPage, studentTotalPages);
+  const pagedStudents = filteredStudents.slice((currentStudentPage - 1) * pageSize, currentStudentPage * pageSize);
+  const untopicTotalPages = Math.max(1, Math.ceil(studentsWithoutTopic.length / pageSize));
+  const currentUntopicPage = Math.min(untopicPage, untopicTotalPages);
+  const pagedStudentsWithoutTopic = studentsWithoutTopic.slice((currentUntopicPage - 1) * pageSize, currentUntopicPage * pageSize);
+
+  useEffect(() => {
+    setStudentPage(1);
+    setUntopicPage(1);
+  }, [search, statusFilter]);
+
+  const renderStudentActions = (app) => (
+    <ActionMenu
+      items={[
+        {
+          label: "Đánh giá",
+          icon: "bi-pencil-square",
+          onClick: () => openEvaluationModal(app),
+          disabled: saving || (!app.cvFile && !app.transcriptFile),
+          title: (!app.cvFile && !app.transcriptFile)
+            ? "Không thể đánh giá: thiếu hồ sơ"
+            : "Đánh giá & cho điểm sinh viên",
+        },
+        {
+          label: "Báo cáo",
+          icon: "bi-clipboard-data",
+          onClick: () => openReportView(app),
+        },
+        {
+          label: "Biểu mẫu",
+          icon: "bi-file-earmark-word-fill",
+          onClick: () => openDocumentView(app),
+        },
+        {
+          label: "Chi tiết",
+          icon: "bi-info-circle",
+          onClick: () => openDetailModal(app),
+        },
+      ]}
+    />
+  );
 
   const openDocumentView = async (app) => {
     setDocumentApp(app);
@@ -373,22 +424,18 @@ export default function AdminStudent() {
       </div>
 
       <div style={styles.statsGrid}>
-        <div style={{ ...styles.statsCard, borderLeft: "5px solid #2563eb" }}>
-          <span style={styles.statsLabel}>Tổng số sinh viên</span>
-          <span style={{ ...styles.statsValue, color: "#2563eb" }}>{stats.total}</span>
-        </div>
-        <div style={{ ...styles.statsCard, borderLeft: "5px solid #0369a1" }}>
-          <span style={styles.statsLabel}>Đang thực tập</span>
-          <span style={{ ...styles.statsValue, color: "#0369a1" }}>{stats.interning}</span>
-        </div>
-        <div style={{ ...styles.statsCard, borderLeft: "5px solid #16a34a" }}>
-          <span style={styles.statsLabel}>Đã hoàn thành</span>
-          <span style={{ ...styles.statsValue, color: "#16a34a" }}>{stats.completed}</span>
-        </div>
-        <div style={{ ...styles.statsCard, borderLeft: "5px solid #f59e0b" }}>
-          <span style={styles.statsLabel}>Điểm trung bình</span>
-          <span style={{ ...styles.statsValue, color: "#f59e0b" }}>{stats.averageScore}</span>
-        </div>
+        {[
+          { label: "Sinh viên đã duyệt", value: stats.total, hint: `${stats.withoutTopic} chưa có đề tài` },
+          { label: "Đang thực tập", value: stats.interning, hint: "Theo trạng thái thực tập hiện tại" },
+          { label: "Đã hoàn thành", value: stats.completed, hint: "Đã kết thúc và có thể tổng kết" },
+          { label: "Điểm trung bình", value: stats.averageScore, hint: `${stats.graded} sinh viên đã có điểm` },
+        ].map((item) => (
+          <div key={item.label} style={styles.statsCard}>
+            <span style={styles.statsLabel}>{item.label}</span>
+            <span style={styles.statsValue}>{item.value}</span>
+            <span style={styles.statsHint}>{item.hint}</span>
+          </div>
+        ))}
       </div>
 
       <div style={styles.filterBar}>
@@ -437,7 +484,7 @@ export default function AdminStudent() {
                 </td>
               </tr>
             ) : (
-              filteredStudents.map((app) => (
+              pagedStudents.map((app) => (
                 <tr key={app._id} style={styles.tr}>
                   <td style={styles.td}>
                     <div style={{ fontWeight: "bold", color: "#1e3a8a" }}>{app.fullName}</div>
@@ -528,40 +575,7 @@ export default function AdminStudent() {
                         </div>
                       ) : (
                         // If has topic, show actions
-                        <>
-                          <div style={styles.rowActions}>
-                            <button
-                              style={styles.evaluateBtn}
-                              onClick={() => openEvaluationModal(app)}
-                              title={(!app.cvFile && !app.transcriptFile) ? "Không thể đánh giá: thiếu hồ sơ" : "Đánh giá & Cho điểm sinh viên"}
-                              disabled={saving || (!app.cvFile && !app.transcriptFile)}
-                            >
-                              <i className="bi bi-pencil-square me-1"></i> Đánh giá
-                            </button>
-
-                            <button
-                              style={styles.viewReportBtn}
-                              onClick={() => openReportView(app)}
-                              title="Xem và nhận xét báo cáo tiến độ"
-                            >
-                              <i className="bi bi-clipboard-data me-1"></i> Báo cáo
-                            </button>
-                            <button
-                              style={styles.documentBtn}
-                              onClick={() => openDocumentView(app)}
-                              title="Xuất biểu mẫu Word"
-                            >
-                              <i className="bi bi-file-earmark-word-fill me-1"></i> Biểu mẫu
-                            </button>
-                          </div>
-                          <button
-                            style={{ ...styles.evaluateBtn, background: '#64748b', borderColor: '#94a3b8', marginTop: 6 }}
-                            onClick={() => openDetailModal(app)}
-                            title="Xem chi tiết hồ sơ sinh viên"
-                          >
-                            <i className="bi bi-info-circle me-1"></i> Chi tiết
-                          </button>
-                        </>
+                        renderStudentActions(app)
                       )}
                     </div>
                   </td>
@@ -571,6 +585,12 @@ export default function AdminStudent() {
           </tbody>
         </table>
       </div>
+      <Pagination
+        page={currentStudentPage}
+        total={filteredStudents.length}
+        pageSize={pageSize}
+        onChange={setStudentPage}
+      />
 
       <div style={{ ...styles.tableWrapper, marginTop: 20 }}>
         <div style={styles.untopicHeader}>
@@ -599,7 +619,7 @@ export default function AdminStudent() {
                 </td>
               </tr>
             ) : (
-              studentsWithoutTopic.map((app) => (
+              pagedStudentsWithoutTopic.map((app) => (
                 <tr key={app._id} style={styles.tr}>
                   <td style={styles.td}>
                     <div style={{ fontWeight: "bold", color: "#1e3a8a" }}>{app.fullName}</div>
@@ -682,6 +702,12 @@ export default function AdminStudent() {
             )}
           </tbody>
         </table>
+        <Pagination
+          page={currentUntopicPage}
+          total={studentsWithoutTopic.length}
+          pageSize={pageSize}
+          onChange={setUntopicPage}
+        />
       </div>
 
       {evaluatingApp && (
@@ -1036,6 +1062,7 @@ const styles = {
   statsCard: { background: "#ffffff", padding: "18px", borderRadius: "16px", boxShadow: "0 4px 15px rgba(15,23,42,0.04)", display: "flex", flexDirection: "column", gap: "6px", border: "1px solid #e2e8f0" },
   statsLabel: { fontSize: "13px", color: "#64748b", fontWeight: "600" },
   statsValue: { fontSize: "28px", fontWeight: "800", lineHeight: 1.2 },
+  statsHint: { color: "#64748b", fontSize: 12, fontWeight: 600 },
   filterBar: { display: "flex", gap: "12px", marginBottom: "20px", flexWrap: "wrap", background: "#ffffff", padding: "16px", borderRadius: "14px", boxShadow: "0 4px 15px rgba(15,23,42,0.03)", border: "1px solid #e2e8f0" },
   searchBox: { position: "relative", display: "flex", alignItems: "center", flex: 1, minWidth: "260px" },
   searchIcon: { position: "absolute", left: "12px", fontSize: "14px", color: "#94a3b8" },

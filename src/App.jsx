@@ -17,6 +17,7 @@ import HomeAdmin from "./pages/Admin/HomeAdmin";
 import UserManagement from "./pages/Admin/UserManagement";
 import AdminApplication from "./pages/Admin/AdminApplication";
 import AdminInternshiptopic from "./pages/Admin/AdminInternshiptopic";
+import AdminInternshipCenter from "./pages/Admin/AdminInternshipCenter";
 import AdminStudent from "./pages/Admin/AdminStudent";
 
 // import AdminReport from "./pages/Admin/AdminReport";
@@ -46,6 +47,7 @@ function App() {
           <Route path="/admin/users" element={<UserManagement />} />
           <Route path="/admin/students" element={<AdminStudent />} />
           <Route path="/admin/internship" element={<AdminInternshiptopic />} />
+          <Route path="/admin/internship-center" element={<AdminInternshipCenter />} />
           <Route path="/admin/application" element={<AdminApplication />} />
           <Route path="/admin/profile" element={<Profile />} />
         </Route>

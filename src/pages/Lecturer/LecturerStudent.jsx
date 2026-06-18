@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import ActionMenu from "../../components/ActionMenu";
 import DocumentExportModal from "../../components/DocumentExportModal";
+import Pagination from "../../components/Pagination";
 import { fetchProgressData } from "../../utils/progressData";
 import {
   buildAssignmentRows,
@@ -54,6 +56,9 @@ export default function LecturerStudent() {
   const [documentReports, setDocumentReports] = useState([]);
   const [documentAssignments, setDocumentAssignments] = useState([]);
   const [documentLoading, setDocumentLoading] = useState(false);
+  const [studentPage, setStudentPage] = useState(1);
+  const [untopicPage, setUntopicPage] = useState(1);
+  const pageSize = 8;
 
   const user = JSON.parse(localStorage.getItem("user")) || {};
   const currentLecturerId = user._id || user.id;
@@ -116,7 +121,11 @@ export default function LecturerStudent() {
 
   const myTopics = topics.filter((topic) => {
     const topicLecturerId = topic.lecturer?._id || topic.lecturer;
-    return topicLecturerId === currentLecturerId;
+    return (
+      topicLecturerId === currentLecturerId &&
+      topic.status === "open" &&
+      (topic.remainingSlots === undefined || topic.remainingSlots > 0)
+    );
   });
 
   // Tìm kiếm và lọc theo trạng thái thực tập
@@ -138,6 +147,8 @@ export default function LecturerStudent() {
     total: myGuidedStudents.length,
     interning: myGuidedStudents.filter((s) => (s.internshipStatus || "đang thực tập") === "đang thực tập").length,
     completed: myGuidedStudents.filter((s) => s.internshipStatus === "đã hoàn thành").length,
+    withoutTopic: studentsWithoutTopic.length,
+    graded: myGuidedStudents.filter((s) => s.score !== null && s.score !== undefined).length,
     averageScore: (() => {
       const gradedStudents = myGuidedStudents.filter((s) => s.score !== null && s.score !== undefined);
       if (gradedStudents.length === 0) return "---";
@@ -356,6 +367,40 @@ export default function LecturerStudent() {
     }
   };
 
+  const studentTotalPages = Math.max(1, Math.ceil(filteredStudents.length / pageSize));
+  const currentStudentPage = Math.min(studentPage, studentTotalPages);
+  const pagedStudents = filteredStudents.slice((currentStudentPage - 1) * pageSize, currentStudentPage * pageSize);
+  const untopicTotalPages = Math.max(1, Math.ceil(studentsWithoutTopic.length / pageSize));
+  const currentUntopicPage = Math.min(untopicPage, untopicTotalPages);
+  const pagedStudentsWithoutTopic = studentsWithoutTopic.slice((currentUntopicPage - 1) * pageSize, currentUntopicPage * pageSize);
+
+  useEffect(() => {
+    setStudentPage(1);
+    setUntopicPage(1);
+  }, [search, statusFilter]);
+
+  const renderStudentActions = (app) => (
+    <ActionMenu
+      items={[
+        {
+          label: "Đánh giá",
+          icon: "bi-pencil-square",
+          onClick: () => openEvaluationModal(app),
+        },
+        {
+          label: "Giao việc",
+          icon: "bi-clipboard-data",
+          onClick: () => openReportView(app),
+        },
+        {
+          label: "Biểu mẫu",
+          icon: "bi-file-earmark-word-fill",
+          onClick: () => openDocumentView(app),
+        },
+      ]}
+    />
+  );
+
   if (loading)
     return <p style={{ padding: 20 }}>Đang tải danh sách sinh viên thực tập...</p>;
 
@@ -379,22 +424,18 @@ export default function LecturerStudent() {
 
       {/* Thống kê nhanh */}
       <div style={styles.statsGrid}>
-        <div style={{ ...styles.statsCard, borderLeft: "5px solid #2563eb" }}>
-          <span style={styles.statsLabel}>Tổng số sinh viên</span>
-          <span style={{ ...styles.statsValue, color: "#2563eb" }}>{stats.total}</span>
-        </div>
-        <div style={{ ...styles.statsCard, borderLeft: "5px solid #0369a1" }}>
-          <span style={styles.statsLabel}>Đang thực tập</span>
-          <span style={{ ...styles.statsValue, color: "#0369a1" }}>{stats.interning}</span>
-        </div>
-        <div style={{ ...styles.statsCard, borderLeft: "5px solid #16a34a" }}>
-          <span style={styles.statsLabel}>Đã hoàn thành</span>
-          <span style={{ ...styles.statsValue, color: "#16a34a" }}>{stats.completed}</span>
-        </div>
-        <div style={{ ...styles.statsCard, borderLeft: "5px solid #f59e0b" }}>
-          <span style={styles.statsLabel}>Điểm trung bình</span>
-          <span style={{ ...styles.statsValue, color: "#f59e0b" }}>{stats.averageScore}</span>
-        </div>
+        {[
+          { label: "Tổng sinh viên", value: stats.total, hint: `${stats.withoutTopic} hồ sơ chưa có đề tài` },
+          { label: "Đang thực tập", value: stats.interning, hint: "Cần theo dõi tiến độ hàng tuần" },
+          { label: "Đã hoàn thành", value: stats.completed, hint: `${stats.graded} sinh viên đã có điểm` },
+          { label: "Điểm trung bình", value: stats.averageScore, hint: "Tính trên sinh viên đã chấm điểm" },
+        ].map((item) => (
+          <div key={item.label} style={styles.statsCard}>
+            <span style={styles.statsLabel}>{item.label}</span>
+            <span style={styles.statsValue}>{item.value}</span>
+            <span style={styles.statsHint}>{item.hint}</span>
+          </div>
+        ))}
       </div>
 
       {/* Bộ lọc và tìm kiếm */}
@@ -445,7 +486,7 @@ export default function LecturerStudent() {
                 </td>
               </tr>
             ) : (
-              filteredStudents.map((app) => (
+              pagedStudents.map((app) => (
                 <tr key={app._id} style={styles.tr}>
                   <td style={styles.td}>
                     <div style={{ fontWeight: "bold", color: "#1e3a8a" }}>{app.fullName}</div>
@@ -508,29 +549,7 @@ export default function LecturerStudent() {
                     </div>
                   </td>
                   <td style={styles.tdCenter}>
-                    <div style={styles.rowActions}>
-                      <button
-                        style={styles.evaluateBtn}
-                        onClick={() => openEvaluationModal(app)}
-                        title="Đánh giá & Cho điểm sinh viên"
-                      >
-                        <i className="bi bi-pencil-square me-1"></i> Đánh giá
-                      </button>
-                      <button
-                        style={styles.viewReportBtn}
-                        onClick={() => openReportView(app)}
-                        title="Xem và nhận xét báo cáo tiến độ"
-                      >
-                        <i className="bi bi-clipboard-data me-1"></i> Giao việc
-                      </button>
-                      <button
-                        style={styles.documentBtn}
-                        onClick={() => openDocumentView(app)}
-                        title="Xuất biểu mẫu Word"
-                      >
-                        <i className="bi bi-file-earmark-word-fill me-1"></i> Biểu mẫu
-                      </button>
-                    </div>
+                    {renderStudentActions(app)}
                   </td>
                 </tr>
               ))
@@ -538,6 +557,12 @@ export default function LecturerStudent() {
           </tbody>
         </table>
       </div>
+      <Pagination
+        page={currentStudentPage}
+        total={filteredStudents.length}
+        pageSize={pageSize}
+        onChange={setStudentPage}
+      />
 
       {/* Danh sách sinh viên chưa có đề tài */}
       <div style={{ ...styles.tableWrapper, marginTop: 20 }}>
@@ -567,7 +592,7 @@ export default function LecturerStudent() {
                 </td>
               </tr>
             ) : (
-              studentsWithoutTopic.map((app) => (
+              pagedStudentsWithoutTopic.map((app) => (
                 <tr key={app._id} style={styles.tr}>
                   <td style={styles.td}>
                     <div style={{ fontWeight: "bold", color: "#1e3a8a" }}>{app.fullName}</div>
@@ -650,6 +675,12 @@ export default function LecturerStudent() {
             )}
           </tbody>
         </table>
+        <Pagination
+          page={currentUntopicPage}
+          total={studentsWithoutTopic.length}
+          pageSize={pageSize}
+          onChange={setUntopicPage}
+        />
       </div>
 
       {/* Modal Đánh giá */}
@@ -1004,6 +1035,11 @@ const styles = {
     fontSize: "24px",
     fontWeight: "800",
     lineHeight: 1.2,
+  },
+  statsHint: {
+    color: "#64748b",
+    fontSize: 12,
+    fontWeight: 600,
   },
 
   filterBar: {

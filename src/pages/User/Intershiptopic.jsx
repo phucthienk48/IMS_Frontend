@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
+import Pagination from "../../components/Pagination";
 import {
   defaultInternshipCenter,
   fetchInternshipCenter,
@@ -11,9 +12,12 @@ const API_BASE = `${API}/api/internship-topics`;
 
 const initialApplyForm = (user = {}) => ({
   fullName: user.username || "",
+  email: user.email || "",
+  sdt: "",
   studentCode: "",
   classCode: "",
   major: "",
+  course: "",
 });
 
 const initialApplyFiles = {
@@ -48,6 +52,8 @@ export default function Intershiptopic() {
   const [applyForm, setApplyForm] = useState(() => initialApplyForm(user));
   const [applyFiles, setApplyFiles] = useState(initialApplyFiles);
   const [center, setCenter] = useState(defaultInternshipCenter);
+  const [page, setPage] = useState(1);
+  const pageSize = 6;
 
   const fetchTopics = async () => {
     try {
@@ -70,6 +76,10 @@ export default function Intershiptopic() {
     fetchInternshipCenter(API).then(setCenter);
   }, []);
 
+  useEffect(() => {
+    setPage(1);
+  }, [search, statusFilter]);
+
   const filteredTopics = useMemo(() => {
     const query = search.trim().toLowerCase();
     return topics.filter((topic) => {
@@ -89,6 +99,9 @@ export default function Intershiptopic() {
     filteredTopics.find((topic) => topic._id === selectedTopicId) ||
     filteredTopics[0] ||
     null;
+  const totalPages = Math.max(1, Math.ceil(filteredTopics.length / pageSize));
+  const currentPage = Math.min(page, totalPages);
+  const pagedTopics = filteredTopics.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
   const uploadFile = async (file) => {
     const formData = new FormData();
@@ -107,6 +120,10 @@ export default function Intershiptopic() {
   };
 
   const openApplyForm = (topic) => {
+    if (topic.status !== "open" || (topic.remainingSlots !== undefined && topic.remainingSlots <= 0)) {
+      alert("Đề tài đã đủ số lượng sinh viên.");
+      return;
+    }
     if (!studentId || user.role !== "student") {
       alert("Bạn cần đăng nhập bằng tài khoản sinh viên để nộp hồ sơ.");
       navigate("/login");
@@ -128,9 +145,12 @@ export default function Intershiptopic() {
 
   const validateApplication = () => {
     if (!applyForm.fullName.trim()) return "Vui lòng nhập họ tên sinh viên.";
+    if (!applyForm.email.trim()) return "Vui lòng nhập email.";
+    if (!applyForm.sdt.trim()) return "Vui lòng nhập số điện thoại.";
     if (!applyForm.studentCode.trim()) return "Vui lòng nhập mã số sinh viên.";
     if (!applyForm.classCode.trim()) return "Vui lòng nhập mã lớp.";
     if (!applyForm.major.trim()) return "Vui lòng nhập ngành/chuyên ngành.";
+    if (!applyForm.course.trim()) return "Vui lòng nhập khóa học.";
     if (!applyFiles.cvFile) return "Vui lòng tải lên CV.";
     if (!applyFiles.transcriptFile) return "Vui lòng tải lên bảng điểm.";
     if (!applyFiles.citizenIdFrontFile) return "Vui lòng tải lên ảnh CCCD mặt trước.";
@@ -159,7 +179,6 @@ export default function Intershiptopic() {
       await axios.post(`${API}/api/application/topic/${applyTopic._id}`, {
         ...applyForm,
         student: studentId,
-        email: user.email || "",
         cvFile: cvPath,
         transcriptFile: transcriptPath,
         citizenIdFrontFile: citizenIdFrontPath,
@@ -226,7 +245,7 @@ export default function Intershiptopic() {
           {filteredTopics.length === 0 ? (
             <div style={styles.emptyBox}>Không tìm thấy đề tài phù hợp.</div>
           ) : (
-            filteredTopics.map((topic) => (
+            pagedTopics.map((topic) => (
               <button
                 key={topic._id}
                 type="button"
@@ -245,10 +264,12 @@ export default function Intershiptopic() {
                 <div style={styles.topicMeta}>
                   <span><i className="bi bi-person" /> {topic.lecturer?.username || "Chưa rõ"}</span>
                   <span><i className="bi bi-building" /> {center.name}</span>
+                  <span><i className="bi bi-people" /> {topic.acceptedCount || 0}/{topic.quantity || 1} sinh viên</span>
                 </div>
               </button>
             ))
           )}
+          <Pagination page={currentPage} total={filteredTopics.length} pageSize={pageSize} onChange={setPage} />
         </div>
 
         <div style={styles.detailPane}>
@@ -263,7 +284,7 @@ export default function Intershiptopic() {
                     Cán bộ phụ trách: {selectedTopic.lecturer?.username || "Chưa rõ"}
                   </p>
                 </div>
-                {selectedTopic.status === "open" && (
+                {selectedTopic.status === "open" && (selectedTopic.remainingSlots === undefined || selectedTopic.remainingSlots > 0) && (
                   <button style={styles.primaryBtn} onClick={() => openApplyForm(selectedTopic)}>
                     <i className="bi bi-send-fill" /> Nộp hồ sơ
                   </button>
@@ -273,6 +294,7 @@ export default function Intershiptopic() {
               <div style={styles.infoGrid}>
                 <Info label="Trung tâm tiếp nhận" value={center.name} />
                 <Info label="Cán bộ phụ trách" value={selectedTopic.lecturer?.username || "Chưa cập nhật"} />
+                <Info label="Số lượng sinh viên" value={`${selectedTopic.acceptedCount || 0}/${selectedTopic.quantity || 1}`} />
                 <Info label="Địa chỉ trung tâm" value={center.address || "Chưa cập nhật"} />
                 <Info label="Thời gian thực tập" value={`${formatDate(selectedTopic.startday)} - ${formatDate(selectedTopic.endday)}`} />
                 <Info label="Số ngày/tuần" value={selectedTopic.workDaysPerWeek ? `${selectedTopic.workDaysPerWeek} ngày` : "Chưa cập nhật"} />
@@ -309,9 +331,12 @@ export default function Intershiptopic() {
 
                   <div style={styles.formGrid}>
                     <Field label="Họ tên sinh viên" name="fullName" value={applyForm.fullName} onChange={handleApplyChange} />
+                    <Field label="Email" name="email" value={applyForm.email} onChange={handleApplyChange} />
+                    <Field label="Số điện thoại" name="sdt" value={applyForm.sdt} onChange={handleApplyChange} />
                     <Field label="Mã số sinh viên" name="studentCode" value={applyForm.studentCode} onChange={handleApplyChange} />
                     <Field label="Mã lớp" name="classCode" value={applyForm.classCode} onChange={handleApplyChange} />
                     <Field label="Ngành/chuyên ngành" name="major" value={applyForm.major} onChange={handleApplyChange} />
+                    <Field label="Khóa học" name="course" value={applyForm.course} onChange={handleApplyChange} />
                   </div>
 
                   <div style={styles.fileGrid}>

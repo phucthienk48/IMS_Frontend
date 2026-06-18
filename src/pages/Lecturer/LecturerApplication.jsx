@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import ActionMenu from "../../components/ActionMenu";
+import Pagination from "../../components/Pagination";
 
 export default function LecturerApplication() {
   const navigate = useNavigate();
@@ -9,6 +11,8 @@ export default function LecturerApplication() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
+  const [groupPage, setGroupPage] = useState(1);
+  const [freePage, setFreePage] = useState(1);
 
   const user = JSON.parse(localStorage.getItem("user")) || {};
 
@@ -46,6 +50,8 @@ export default function LecturerApplication() {
 
   useEffect(() => {
     setCurrentPage(1);
+    setGroupPage(1);
+    setFreePage(1);
   }, [search, statusFilter]);
 
   const getBadgeStyle = (status) => {
@@ -93,6 +99,35 @@ export default function LecturerApplication() {
     }
   };
 
+  const canResetStatus = (app) =>
+    app.status !== "chờ duyệt" &&
+    app.approvedBy &&
+    (app.approvedBy._id === (user._id || user.id) ||
+      app.approvedBy === (user._id || user.id));
+
+  const renderStatusActions = (app) => (
+    <ActionMenu
+      items={[
+        app.status === "chờ duyệt" && {
+          label: "Duyệt hồ sơ",
+          icon: "bi-check2-circle",
+          onClick: () => handleUpdateStatus(app._id, "đã duyệt"),
+        },
+        app.status === "chờ duyệt" && {
+          label: "Từ chối",
+          icon: "bi-x-circle",
+          variant: "danger",
+          onClick: () => handleUpdateStatus(app._id, "từ chối"),
+        },
+        canResetStatus(app) && {
+          label: "Đặt về chờ duyệt",
+          icon: "bi-arrow-counterclockwise",
+          onClick: () => handleUpdateStatus(app._id, "chờ duyệt"),
+        },
+      ]}
+    />
+  );
+
   if (loading)
     return <p style={{ padding: 20 }}>Đang tải hồ sơ đăng ký thực tập...</p>;
 
@@ -102,7 +137,9 @@ export default function LecturerApplication() {
     pending: applications.filter((app) => app.status === "chờ duyệt").length,
     approved: applications.filter((app) => app.status === "đã duyệt").length,
     rejected: applications.filter((app) => app.status === "từ chối").length,
+    free: applications.filter((app) => !app.topic).length,
   };
+  const approvalRate = stats.total ? Math.round((stats.approved / stats.total) * 100) : 0;
 
   // Lọc hồ sơ - chỉ hiển thị hồ sơ của đề tài của lecturer hoặc hồ sơ tự do
   const filteredApps = applications.filter((app) => {
@@ -137,6 +174,18 @@ export default function LecturerApplication() {
   filteredApps.forEach((app) => {
     if (!app.topic) freeApps.push(app);
   });
+  const groupTotalPages = Math.max(1, Math.ceil(groupedTopicList.length / itemsPerPage));
+  const currentGroupPage = Math.min(groupPage, groupTotalPages);
+  const pagedGroupedTopicList = groupedTopicList.slice(
+    (currentGroupPage - 1) * itemsPerPage,
+    currentGroupPage * itemsPerPage,
+  );
+  const freeTotalPages = Math.max(1, Math.ceil(freeApps.length / itemsPerPage));
+  const currentFreePage = Math.min(freePage, freeTotalPages);
+  const pagedFreeApps = freeApps.slice(
+    (currentFreePage - 1) * itemsPerPage,
+    currentFreePage * itemsPerPage,
+  );
 
   return (
     <div style={styles.container}>
@@ -161,30 +210,18 @@ export default function LecturerApplication() {
 
       {/* Thống kê nhanh */}
       <div style={styles.statsGrid}>
-        <div style={{ ...styles.statsCard, borderTop: "4px solid #2563eb" }}>
-          <span style={styles.statsLabel}>Tổng số hồ sơ</span>
-          <span style={{ ...styles.statsValue, color: "#2563eb" }}>
-            {stats.total}
-          </span>
-        </div>
-        <div style={{ ...styles.statsCard, borderTop: "4px solid #d97706" }}>
-          <span style={styles.statsLabel}>Chờ duyệt</span>
-          <span style={{ ...styles.statsValue, color: "#d97706" }}>
-            {stats.pending}
-          </span>
-        </div>
-        <div style={{ ...styles.statsCard, borderTop: "4px solid #16a34a" }}>
-          <span style={styles.statsLabel}>Đã duyệt</span>
-          <span style={{ ...styles.statsValue, color: "#16a34a" }}>
-            {stats.approved}
-          </span>
-        </div>
-        <div style={{ ...styles.statsCard, borderTop: "4px solid #dc2626" }}>
-          <span style={styles.statsLabel}>Từ chối</span>
-          <span style={{ ...styles.statsValue, color: "#dc2626" }}>
-            {stats.rejected}
-          </span>
-        </div>
+        {[
+          { label: "Hồ sơ liên quan", value: stats.total, hint: `${stats.free} hồ sơ tự do` },
+          { label: "Chờ duyệt", value: stats.pending, hint: "Cần phản hồi sinh viên" },
+          { label: "Đã duyệt", value: stats.approved, hint: `${approvalRate}% trên tổng hồ sơ` },
+          { label: "Từ chối", value: stats.rejected, hint: "Cần theo dõi bổ sung" },
+        ].map((item) => (
+          <div key={item.label} style={styles.statsCard}>
+            <span style={styles.statsLabel}>{item.label}</span>
+            <span style={styles.statsValue}>{item.value}</span>
+            <span style={styles.statsHint}>{item.hint}</span>
+          </div>
+        ))}
       </div>
 
       {/* Bộ lọc và tìm kiếm */}
@@ -225,7 +262,7 @@ export default function LecturerApplication() {
       ) : (
         <div>
           {/* Nhóm theo đề tài */}
-          {groupedTopicList.map(({ topic, apps }) => {
+          {pagedGroupedTopicList.map(({ topic, apps }) => {
             return (
               <div key={topic._id} style={styles.groupWrapper}>
                 <div
@@ -381,52 +418,7 @@ export default function LecturerApplication() {
                             )}
                           </td>
                           <td style={styles.tdCenter}>
-                            <div style={styles.actionGroup}>
-                              {app.status === "chờ duyệt" && (
-                                <>
-                                  <button
-                                    style={{
-                                      ...styles.actionBtn,
-                                      ...styles.approveBtn,
-                                    }}
-                                    onClick={() =>
-                                      handleUpdateStatus(app._id, "đã duyệt")
-                                    }
-                                  >
-                                    <i className="bi bi-check2-circle"></i>{" "}
-                                    Duyệt
-                                  </button>
-                                  <button
-                                    style={{
-                                      ...styles.actionBtn,
-                                      ...styles.rejectBtn,
-                                    }}
-                                    onClick={() =>
-                                      handleUpdateStatus(app._id, "từ chối")
-                                    }
-                                  >
-                                    <i className="bi bi-x-circle"></i> Từ chối
-                                  </button>
-                                </>
-                              )}
-                              {app.status !== "chờ duyệt" &&
-                                app.approvedBy &&
-                                (app.approvedBy._id === (user._id || user.id) ||
-                                  app.approvedBy === (user._id || user.id)) && (
-                                  <button
-                                    style={{
-                                      ...styles.actionBtn,
-                                      ...styles.resetBtn,
-                                    }}
-                                    onClick={() =>
-                                      handleUpdateStatus(app._id, "chờ duyệt")
-                                    }
-                                  >
-                                    <i className="bi bi-arrow-counterclockwise"></i>{" "}
-                                    Đặt lại
-                                  </button>
-                                )}
-                            </div>
+                            {renderStatusActions(app)}
                           </td>
                         </tr>
                       ))}
@@ -436,6 +428,7 @@ export default function LecturerApplication() {
               </div>
             );
           })}
+          <Pagination page={currentGroupPage} total={groupedTopicList.length} pageSize={itemsPerPage} onChange={setGroupPage} />
 
           {/* Nhóm Hồ sơ tự do */}
           {freeApps.length > 0 && (
@@ -486,7 +479,7 @@ export default function LecturerApplication() {
                     </tr>
                   </thead>
                   <tbody>
-                    {freeApps.map((app) => (
+                    {pagedFreeApps.map((app) => (
                       <tr key={app._id} style={styles.tr}>
                         <td style={styles.td}>
                           <div style={{ fontWeight: "bold", color: "#1e3a8a" }}>
@@ -592,57 +585,14 @@ export default function LecturerApplication() {
                           )}
                         </td>
                         <td style={styles.tdCenter}>
-                          <div style={styles.actionGroup}>
-                            {app.status === "chờ duyệt" && (
-                              <>
-                                <button
-                                  style={{
-                                    ...styles.actionBtn,
-                                    ...styles.approveBtn,
-                                  }}
-                                  onClick={() =>
-                                    handleUpdateStatus(app._id, "đã duyệt")
-                                  }
-                                >
-                                  <i className="bi bi-check2-circle"></i> Duyệt
-                                </button>
-                                <button
-                                  style={{
-                                    ...styles.actionBtn,
-                                    ...styles.rejectBtn,
-                                  }}
-                                  onClick={() =>
-                                    handleUpdateStatus(app._id, "từ chối")
-                                  }
-                                >
-                                  <i className="bi bi-x-circle"></i> Từ chối
-                                </button>
-                              </>
-                            )}
-                            {app.status !== "chờ duyệt" &&
-                              app.approvedBy &&
-                              (app.approvedBy._id === (user._id || user.id) ||
-                                app.approvedBy === (user._id || user.id)) && (
-                                <button
-                                  style={{
-                                    ...styles.actionBtn,
-                                    ...styles.resetBtn,
-                                  }}
-                                  onClick={() =>
-                                    handleUpdateStatus(app._id, "chờ duyệt")
-                                  }
-                                >
-                                  <i className="bi bi-arrow-counterclockwise"></i>{" "}
-                                  Đặt lại
-                                </button>
-                              )}
-                          </div>
+                          {renderStatusActions(app)}
                         </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
+              <Pagination page={currentFreePage} total={freeApps.length} pageSize={itemsPerPage} onChange={setFreePage} />
             </div>
           )}
         </div>
@@ -737,6 +687,11 @@ const styles = {
     fontSize: "24px",
     fontWeight: "800",
     lineHeight: 1.2,
+  },
+  statsHint: {
+    color: "#64748b",
+    fontSize: 12,
+    fontWeight: 600,
   },
 
   filterBar: {

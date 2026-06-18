@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import ActionMenu from "../../components/ActionMenu";
+import Pagination from "../../components/Pagination";
 import {
   defaultInternshipCenter,
   fetchInternshipCenter,
@@ -10,6 +12,7 @@ const emptyTopicForm = {
   topicname: "",
   description: "",
   requirement: "",
+  quantity: 1,
   workDaysPerWeek: "",
   workHoursPerDay: "",
   startday: "",
@@ -32,6 +35,8 @@ export default function LecturerIntershiptopic() {
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [form, setForm] = useState(emptyTopicForm);
   const [center, setCenter] = useState(defaultInternshipCenter);
+  const [page, setPage] = useState(1);
+  const pageSize = 8;
 
   const fetchTopics = async () => {
     try {
@@ -57,12 +62,16 @@ export default function LecturerIntershiptopic() {
     fetchInternshipCenter("http://localhost:5000").then(setCenter);
   }, [lecturerId]);
 
+  useEffect(() => {
+    setPage(1);
+  }, [search]);
+
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
     const nextValue =
       type === "checkbox"
         ? checked
-        : ["workDaysPerWeek", "workHoursPerDay"].includes(name)
+        : ["quantity", "workDaysPerWeek", "workHoursPerDay"].includes(name)
           ? value === ""
             ? ""
             : Number(value)
@@ -80,6 +89,7 @@ export default function LecturerIntershiptopic() {
       topicname: topic.topicname || "",
       description: topic.description || "",
       requirement: topic.requirement || "",
+      quantity: numberOrBlank(topic.quantity || 1),
       workDaysPerWeek: numberOrBlank(topic.workDaysPerWeek),
       workHoursPerDay: numberOrBlank(topic.workHoursPerDay),
       startday: topic.startday ? topic.startday.split("T")[0] : "",
@@ -115,6 +125,10 @@ export default function LecturerIntershiptopic() {
       alert("Ngày kết thúc phải sau ngày bắt đầu.");
       return;
     }
+    if (!form.quantity || form.quantity < 1) {
+      alert("Số lượng sinh viên phải lớn hơn hoặc bằng 1.");
+      return;
+    }
     if (form.workDaysPerWeek !== "" && (form.workDaysPerWeek < 1 || form.workDaysPerWeek > 7)) {
       alert("Số ngày thực tập mỗi tuần phải từ 1 đến 7.");
       return;
@@ -126,6 +140,7 @@ export default function LecturerIntershiptopic() {
 
     const payload = {
       ...form,
+      quantity: Number(form.quantity) || 1,
       workDaysPerWeek: nullableNumber(form.workDaysPerWeek),
       workHoursPerDay: nullableNumber(form.workHoursPerDay),
       lecturer: lecturerId,
@@ -202,7 +217,7 @@ export default function LecturerIntershiptopic() {
       if (!res.ok) throw new Error(data.message || "Thay đổi trạng thái thất bại");
       setTopics((prev) =>
         prev.map((topic) =>
-          topic._id === id ? { ...topic, status: newStatus } : topic
+          topic._id === id ? { ...topic, ...data.data } : topic
         )
       );
       alert(
@@ -225,6 +240,9 @@ export default function LecturerIntershiptopic() {
       (topic.lecturer?.username || "").toLowerCase().includes(query)
     );
   });
+  const totalPages = Math.max(1, Math.ceil(filteredTopics.length / pageSize));
+  const currentPage = Math.min(page, totalPages);
+  const pagedTopics = filteredTopics.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
   const formatDate = (value) => {
     if (!value) return "Chưa cập nhật";
@@ -233,6 +251,29 @@ export default function LecturerIntershiptopic() {
       ? "Chưa cập nhật"
       : date.toLocaleDateString("vi-VN");
   };
+
+  const renderTopicActions = (topic) => (
+    <ActionMenu
+      items={[
+        {
+          label: topic.status === "open" ? "Đóng đăng ký" : "Mở đăng ký",
+          icon: topic.status === "open" ? "bi-lock-fill" : "bi-unlock-fill",
+          onClick: () => handleToggleStatus(topic._id, topic.status),
+        },
+        {
+          label: "Chỉnh sửa",
+          icon: "bi-pencil-fill",
+          onClick: () => handleEdit(topic),
+        },
+        {
+          label: "Xóa đề tài",
+          icon: "bi-trash-fill",
+          variant: "danger",
+          onClick: () => handleDelete(topic._id),
+        },
+      ]}
+    />
+  );
 
   if (loading) {
     return (
@@ -419,6 +460,20 @@ export default function LecturerIntershiptopic() {
               <div style={styles.formSectionTitle}>Thời gian thực tập</div>
 
               <div style={styles.fieldGroup}>
+                <label style={styles.label}>Số lượng sinh viên</label>
+                <input
+                  className="lit-input"
+                  style={styles.input}
+                  name="quantity"
+                  type="number"
+                  min="1"
+                  value={form.quantity}
+                  onChange={handleChange}
+                  required
+                />
+              </div>
+
+              <div style={styles.fieldGroup}>
                 <label style={styles.label}>Ngày bắt đầu</label>
                 <input
                   className="lit-input"
@@ -539,6 +594,7 @@ export default function LecturerIntershiptopic() {
                 <tr>
                   <th style={styles.th}>Tên đề tài</th>
                   <th style={styles.th}>Trung tâm tiếp nhận</th>
+                  <th style={styles.th}>Sinh viên</th>
                   <th style={styles.th}>Thời gian</th>
                   <th style={styles.th}>Điều kiện</th>
                   <th style={{ ...styles.th, textAlign: "center" }}>
@@ -552,7 +608,7 @@ export default function LecturerIntershiptopic() {
               <tbody>
                 {filteredTopics.length === 0 ? (
                   <tr>
-                    <td colSpan="6" style={styles.emptyCell}>
+                    <td colSpan="7" style={styles.emptyCell}>
                       <div style={styles.emptyState}>
                         <i
                           className="bi bi-journal-x"
@@ -567,7 +623,7 @@ export default function LecturerIntershiptopic() {
                     </td>
                   </tr>
                 ) : (
-                  filteredTopics.map((topic) => (
+                  pagedTopics.map((topic) => (
                     <tr
                       key={topic._id}
                       className="lit-row"
@@ -589,6 +645,16 @@ export default function LecturerIntershiptopic() {
                         </div>
                         <div style={styles.mutedText}>
                           Cán bộ: {topic.lecturer?.username || "Chưa rõ"}
+                        </div>
+                      </td>
+                      <td style={styles.td}>
+                        <span style={styles.quantityBadge}>
+                          {topic.acceptedCount || 0}/{topic.quantity || 1}
+                        </span>
+                        <div style={styles.mutedText}>
+                          {topic.remainingSlots > 0
+                            ? `Còn ${topic.remainingSlots} chỗ`
+                            : "Đã đủ sinh viên"}
                         </div>
                       </td>
                       <td style={styles.td}>
@@ -659,35 +725,7 @@ export default function LecturerIntershiptopic() {
                         )}
                       </td>
                       <td style={{ ...styles.td, textAlign: "center" }}>
-                        <div style={styles.actionGroup}>
-                          <button
-                            className={`lit-status-btn ${topic.status === "open" ? "lit-status-btn-close" : "lit-status-btn-open"}`}
-                            style={styles.statusBtn}
-                            onClick={() => handleToggleStatus(topic._id, topic.status)}
-                            title={topic.status === "open" ? "Đóng đề tài" : "Mở đề tài"}
-                          >
-                            <i className={`bi ${topic.status === "open" ? "bi-lock-fill" : "bi-unlock-fill"}`}></i>
-                            {topic.status === "open" ? "Đóng" : "Mở"}
-                          </button>
-                          <button
-                            className="lit-edit-btn"
-                            style={styles.editBtn}
-                            onClick={() => handleEdit(topic)}
-                            title="Chỉnh sửa"
-                          >
-                            <i className="bi bi-pencil-fill"></i>
-                            Sửa
-                          </button>
-                          <button
-                            className="lit-delete-btn"
-                            style={styles.deleteBtn}
-                            onClick={() => handleDelete(topic._id)}
-                            title="Xoá đề tài"
-                          >
-                            <i className="bi bi-trash-fill"></i>
-                            Xóa
-                          </button>
-                        </div>
+                        {renderTopicActions(topic)}
                       </td>
                     </tr>
                   ))
@@ -695,6 +733,7 @@ export default function LecturerIntershiptopic() {
               </tbody>
             </table>
           </div>
+          <Pagination page={currentPage} total={filteredTopics.length} pageSize={pageSize} onChange={setPage} />
         </div>
       </div>
     </>
