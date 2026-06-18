@@ -1,4 +1,8 @@
 import { useEffect, useState } from "react";
+import {
+  defaultInternshipCenter,
+  fetchInternshipCenter,
+} from "../../config/internshipCenter";
 
 const API_BASE = "http://localhost:5000/api/internship-topics";
 
@@ -6,6 +10,7 @@ export default function AdminInternshiptopic() {
   const [topics, setTopics] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [center, setCenter] = useState(defaultInternshipCenter);
 
   const fetchTopics = async () => {
     try {
@@ -22,6 +27,7 @@ export default function AdminInternshiptopic() {
 
   useEffect(() => {
     fetchTopics();
+    fetchInternshipCenter("http://localhost:5000").then(setCenter);
   }, []);
 
   const handleToggleStatus = async (id, currentStatus) => {
@@ -61,16 +67,22 @@ export default function AdminInternshiptopic() {
   };
 
   const filteredTopics = topics.filter((topic) => {
-    const query = search.toLowerCase();
+    const query = search.trim().toLowerCase();
     return (
-      topic.topicname.toLowerCase().includes(query) ||
-      topic.department.toLowerCase().includes(query) ||
-      topic.position.toLowerCase().includes(query) ||
-      topic.description.toLowerCase().includes(query) ||
-      topic.requirement.toLowerCase().includes(query) ||
+      (topic.topicname || "").toLowerCase().includes(query) ||
+      (topic.description || "").toLowerCase().includes(query) ||
+      (topic.requirement || "").toLowerCase().includes(query) ||
       topic.lecturer?.username?.toLowerCase().includes(query)
     );
   });
+
+  const formatDate = (value) => {
+    if (!value) return "Chưa cập nhật";
+    const date = new Date(value);
+    return Number.isNaN(date.getTime())
+      ? "Chưa cập nhật"
+      : date.toLocaleDateString("vi-VN");
+  };
 
   if (loading) {
     return (
@@ -93,14 +105,10 @@ export default function AdminInternshiptopic() {
         .ait-row:hover td { background: #f8faff !important; }
 
         .ait-toggle-btn:hover {
-          background: linear-gradient(135deg, #10b981, #059669) !important;
-          transform: translateY(-1px);
-          box-shadow: 0 8px 20px rgba(16,185,129,0.35) !important;
+          filter: brightness(0.95);
         }
         .ait-delete-btn:hover {
-          background: linear-gradient(135deg, #ef4444, #dc2626) !important;
-          transform: translateY(-1px);
-          box-shadow: 0 8px 20px rgba(239,68,68,0.35) !important;
+          background: #991b1b !important;
         }
 
         .ait-badge-open {
@@ -150,7 +158,7 @@ export default function AdminInternshiptopic() {
             <div
               style={{
                 ...styles.statCard,
-                background: "linear-gradient(135deg, #dcfce7, #bbf7d0)",
+                background: "#f0fdf4",
                 border: "1px solid #86efac",
               }}
             >
@@ -164,7 +172,7 @@ export default function AdminInternshiptopic() {
             <div
               style={{
                 ...styles.statCard,
-                background: "linear-gradient(135deg, #fee2e2, #fecaca)",
+                background: "#fef2f2",
                 border: "1px solid #fca5a5",
               }}
             >
@@ -184,7 +192,7 @@ export default function AdminInternshiptopic() {
           <input
             className="ait-search-input"
             style={styles.searchInput}
-            placeholder="Tìm theo tên đề tài, giảng viên, bộ môn..."
+            placeholder="Tìm theo tên đề tài, giảng viên hoặc nội dung công việc..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -214,14 +222,9 @@ export default function AdminInternshiptopic() {
                 <tr>
                   <th style={styles.th}>Đề tài</th>
                   <th style={styles.th}>Giảng viên</th>
-                  <th style={styles.th}>Bộ môn / Vị trí</th>
-                  <th style={{ ...styles.th, width: "20%" }}>Yêu cầu</th>
-                  <th
-                    style={{ ...styles.th, textAlign: "center", width: "8%" }}
-                  >
-                    Số lượng
-                  </th>
+                  <th style={styles.th}>Trung tâm tiếp nhận</th>
                   <th style={styles.th}>Thời gian</th>
+                  <th style={styles.th}>Điều kiện</th>
                   <th style={{ ...styles.th, textAlign: "center" }}>
                     Trạng thái
                   </th>
@@ -233,7 +236,7 @@ export default function AdminInternshiptopic() {
               <tbody>
                 {filteredTopics.length === 0 ? (
                   <tr>
-                    <td colSpan="8" style={styles.emptyCell}>
+                    <td colSpan="7" style={styles.emptyCell}>
                       <div style={styles.emptyState}>
                         <i
                           className="bi bi-journal-x"
@@ -256,7 +259,9 @@ export default function AdminInternshiptopic() {
                     >
                       <td style={styles.td}>
                         <div style={styles.topicName}>{topic.topicname}</div>
-                        <div style={styles.mutedText}>{topic.description}</div>
+                        <div style={styles.mutedText}>
+                          {topic.requirement || topic.description}
+                        </div>
                       </td>
                       <td style={styles.td}>
                         <div style={styles.lecturerName}>
@@ -267,24 +272,12 @@ export default function AdminInternshiptopic() {
                         </div>
                       </td>
                       <td style={styles.td}>
-                        <div style={styles.deptLabel}>{topic.department}</div>
-                        <div style={styles.positionBadge}>{topic.position}</div>
-                      </td>
-                      <td
-                        style={{
-                          ...styles.td,
-                          fontSize: "13px",
-                          color: "#475569",
-                        }}
-                      >
-                        <div style={styles.requirementText}>
-                          {topic.requirement}
+                        <div style={styles.deptLabel}>
+                          {center.name}
                         </div>
-                      </td>
-                      <td style={{ ...styles.td, textAlign: "center" }}>
-                        <span style={styles.quantityBadge}>
-                          {topic.quantity} SV
-                        </span>
+                        <div style={styles.mutedText}>
+                          Cán bộ: {topic.lecturer?.username || "Chưa rõ"}
+                        </div>
                       </td>
                       <td style={styles.td}>
                         <div style={styles.dateRow}>
@@ -292,14 +285,46 @@ export default function AdminInternshiptopic() {
                             className="bi bi-calendar-event"
                             style={{ color: "#94a3b8", fontSize: 12 }}
                           ></i>
-                          {new Date(topic.startday).toLocaleDateString("vi-VN")}
+                          {formatDate(topic.startday)}
                         </div>
                         <div style={{ ...styles.dateRow, marginTop: 4 }}>
                           <i
                             className="bi bi-calendar-check"
                             style={{ color: "#94a3b8", fontSize: 12 }}
                           ></i>
-                          {new Date(topic.endday).toLocaleDateString("vi-VN")}
+                          {formatDate(topic.endday)}
+                        </div>
+                      </td>
+                      <td style={styles.td}>
+                        <div style={styles.conditionStack}>
+                          <span style={styles.conditionPill}>
+                            {topic.workDaysPerWeek
+                              ? `${topic.workDaysPerWeek} ngày/tuần`
+                              : "Chưa nhập ngày/tuần"}
+                          </span>
+                          <span style={styles.conditionPill}>
+                            {topic.workHoursPerDay
+                              ? `${topic.workHoursPerDay} giờ/ngày`
+                              : "Chưa nhập giờ/ngày"}
+                          </span>
+                          <span
+                            style={
+                              center.hasOffice
+                                ? styles.conditionOk
+                                : styles.conditionMuted
+                            }
+                          >
+                            Nơi làm việc
+                          </span>
+                          <span
+                            style={
+                              center.hasComputer
+                                ? styles.conditionOk
+                                : styles.conditionMuted
+                            }
+                          >
+                            Máy tính
+                          </span>
                         </div>
                       </td>
                       <td style={{ ...styles.td, textAlign: "center" }}>
@@ -329,8 +354,8 @@ export default function AdminInternshiptopic() {
                               ...styles.toggleBtn,
                               background:
                                 topic.status === "open"
-                                  ? "linear-gradient(135deg, #10b981, #059669)"
-                                  : "linear-gradient(135deg, #f59e0b, #d97706)",
+                                  ? "#d97706"
+                                  : "#15803d",
                             }}
                             onClick={() =>
                               handleToggleStatus(topic._id, topic.status)
@@ -371,9 +396,9 @@ export default function AdminInternshiptopic() {
 
 const styles = {
   page: {
-    minHeight: "100vh",
-    padding: "28px 32px",
-    background: "linear-gradient(160deg, #f0f4ff 0%, #f8fafc 60%, #fff 100%)",
+    minHeight: "70vh",
+    padding: 0,
+    background: "transparent",
     fontFamily: "'Inter', sans-serif",
   },
 
@@ -407,12 +432,13 @@ const styles = {
     alignItems: "flex-start",
     gap: 20,
     marginBottom: 24,
-    background:
-      "radial-gradient(circle at top left, rgba(96,165,250,0.2), transparent 45%), linear-gradient(135deg, #1f2937, #1e40af)",
-    borderRadius: 24,
-    padding: "32px 36px",
-    boxShadow: "0 18px 42px rgba(15,23,42,0.18)",
-    color: "#fff",
+    background: "#fff",
+    border: "1px solid #d7dee8",
+    borderLeft: "4px solid #f29111",
+    borderRadius: 8,
+    padding: "22px 24px",
+    boxShadow: "0 1px 2px rgba(15,23,42,0.06)",
+    color: "#334155",
   },
   topLeft: {
     display: "flex",
@@ -424,27 +450,26 @@ const styles = {
     display: "inline-flex",
     alignItems: "center",
     gap: 7,
-    background: "rgba(255,255,255,0.15)",
-    border: "1px solid rgba(255,255,255,0.25)",
+    background: "#f8fafc",
+    border: "1px solid #d7dee8",
     borderRadius: 999,
     padding: "4px 12px",
     fontSize: 12,
     fontWeight: 700,
-    color: "#bfdbfe",
+    color: "#083c73",
     width: "fit-content",
-    letterSpacing: "0.4px",
-    backdropFilter: "blur(4px)",
+    letterSpacing: 0,
   },
   title: {
-    fontSize: 32,
+    fontSize: 22,
     margin: 0,
-    color: "#fff",
+    color: "#083c73",
     fontWeight: 800,
-    letterSpacing: "-0.5px",
+    letterSpacing: 0,
   },
   subtitle: {
     margin: 0,
-    color: "rgba(255,255,255,0.75)",
+    color: "#64748b",
     fontSize: 14,
     fontWeight: 500,
   },
@@ -455,28 +480,27 @@ const styles = {
     alignItems: "center",
   },
   statCard: {
-    background: "rgba(255,255,255,0.16)",
-    border: "1px solid rgba(255,255,255,0.2)",
-    borderRadius: 16,
+    background: "#f8fafc",
+    border: "1px solid #d7dee8",
+    borderRadius: 8,
     padding: "14px 22px",
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
     gap: 2,
-    backdropFilter: "blur(6px)",
     minWidth: 90,
   },
   statNum: {
     fontSize: 28,
     fontWeight: 800,
-    color: "#fff",
+    color: "#083c73",
     lineHeight: 1,
   },
   statLabel: {
     fontSize: 11,
-    color: "rgba(255,255,255,0.75)",
+    color: "#64748b",
     fontWeight: 600,
-    letterSpacing: "0.4px",
+    letterSpacing: 0,
     textTransform: "uppercase",
   },
 
@@ -487,11 +511,11 @@ const styles = {
     alignItems: "center",
     background: "#fff",
     border: "1.5px solid #e2e8f0",
-    borderRadius: 16,
+    borderRadius: 8,
     padding: "0 20px",
     height: 52,
     marginBottom: 24,
-    boxShadow: "0 4px 16px rgba(15,23,42,0.05)",
+    boxShadow: "0 1px 2px rgba(15,23,42,0.06)",
     transition: "border-color 0.2s",
   },
   searchIcon: {
@@ -521,10 +545,12 @@ const styles = {
   // TABLE CARD
   tableCard: {
     background: "#fff",
-    borderRadius: 24,
-    boxShadow: "0 8px 32px rgba(15,23,42,0.07)",
-    border: "1px solid #e2e8f0",
+    borderRadius: 8,
+    boxShadow: "0 1px 2px rgba(15,23,42,0.06)",
+    border: "1px solid #d7dee8",
     overflow: "hidden",
+    maxWidth: "100%",
+    minWidth: 0,
   },
   tableHeader: {
     padding: "20px 28px",
@@ -543,11 +569,12 @@ const styles = {
   },
   tableWrapper: {
     overflowX: "auto",
+    maxWidth: "100%",
   },
   table: {
     width: "100%",
     borderCollapse: "collapse",
-    minWidth: 1200,
+    minWidth: 1120,
   },
   tableRow: {
     transition: "background 0.15s",
@@ -558,7 +585,7 @@ const styles = {
     fontSize: 11,
     fontWeight: 700,
     textTransform: "uppercase",
-    letterSpacing: "0.06em",
+    letterSpacing: 0,
     borderBottom: "1px solid #f1f5f9",
     background: "#f8fafc",
     whiteSpace: "nowrap",
@@ -637,6 +664,45 @@ const styles = {
     fontSize: 12,
     fontWeight: 500,
   },
+  conditionStack: {
+    display: "flex",
+    flexWrap: "wrap",
+    gap: 6,
+    maxWidth: 240,
+  },
+  conditionPill: {
+    display: "inline-flex",
+    alignItems: "center",
+    border: "1px solid #d7dee8",
+    borderRadius: 999,
+    background: "#f8fafc",
+    color: "#475569",
+    fontSize: 11,
+    fontWeight: 700,
+    padding: "4px 9px",
+  },
+  conditionOk: {
+    display: "inline-flex",
+    alignItems: "center",
+    border: "1px solid #bbf7d0",
+    borderRadius: 999,
+    background: "#dcfce7",
+    color: "#166534",
+    fontSize: 11,
+    fontWeight: 700,
+    padding: "4px 9px",
+  },
+  conditionMuted: {
+    display: "inline-flex",
+    alignItems: "center",
+    border: "1px solid #e2e8f0",
+    borderRadius: 999,
+    background: "#f8fafc",
+    color: "#94a3b8",
+    fontSize: 11,
+    fontWeight: 700,
+    padding: "4px 9px",
+  },
   emptyCell: {
     padding: 0,
     background: "#fff",
@@ -661,6 +727,7 @@ const styles = {
   },
   actionGroup: {
     display: "flex",
+    flexWrap: "wrap",
     gap: 8,
     justifyContent: "center",
     alignItems: "center",
@@ -670,13 +737,13 @@ const styles = {
     alignItems: "center",
     gap: 5,
     padding: "8px 14px",
-    borderRadius: 10,
+    borderRadius: 8,
     border: "none",
     color: "#fff",
     fontWeight: 700,
     fontSize: 12,
     cursor: "pointer",
-    boxShadow: "0 4px 12px rgba(16,185,129,0.2)",
+    boxShadow: "none",
     transition: "all 0.22s ease",
     fontFamily: "'Inter', sans-serif",
   },
@@ -685,14 +752,14 @@ const styles = {
     alignItems: "center",
     gap: 5,
     padding: "8px 14px",
-    borderRadius: 10,
+    borderRadius: 8,
     border: "none",
-    background: "linear-gradient(135deg, #ef4444, #dc2626)",
+    background: "#b91c1c",
     color: "#fff",
     fontWeight: 700,
     fontSize: 12,
     cursor: "pointer",
-    boxShadow: "0 4px 12px rgba(239,68,68,0.2)",
+    boxShadow: "none",
     transition: "all 0.22s ease",
     fontFamily: "'Inter', sans-serif",
   },

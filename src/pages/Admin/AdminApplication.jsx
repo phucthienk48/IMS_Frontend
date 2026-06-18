@@ -91,7 +91,7 @@ export default function LecturerApplication() {
   };
 
   if (loading)
-    return <p style={{ padding: 20 }}>⏳ Đang tải hồ sơ đăng ký thực tập...</p>;
+    return <p style={{ padding: 20 }}>Đang tải hồ sơ đăng ký thực tập...</p>;
 
   // Thống kê số lượng
   const stats = {
@@ -330,6 +330,28 @@ export default function LecturerApplication() {
                                   Bảng điểm
                                 </a>
                               )}
+                              {app.citizenIdFrontFile && (
+                                <a
+                                  href={`http://localhost:5000${app.citizenIdFrontFile}`}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  style={styles.fileLink}
+                                >
+                                  <i className="bi bi-card-image text-primary me-1"></i>{" "}
+                                  CCCD trước
+                                </a>
+                              )}
+                              {app.citizenIdBackFile && (
+                                <a
+                                  href={`http://localhost:5000${app.citizenIdBackFile}`}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  style={styles.fileLink}
+                                >
+                                  <i className="bi bi-card-image text-primary me-1"></i>{" "}
+                                  CCCD sau
+                                </a>
+                              )}
                             </div>
                           </td>
                           <td style={styles.td}>
@@ -508,6 +530,28 @@ export default function LecturerApplication() {
                               >
                                 <i className="bi bi-file-earmark-spreadsheet-fill text-success me-1"></i>{" "}
                                 Bảng điểm
+                              </a>
+                            )}
+                            {app.citizenIdFrontFile && (
+                              <a
+                                href={`http://localhost:5000${app.citizenIdFrontFile}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                style={styles.fileLink}
+                              >
+                                <i className="bi bi-card-image text-primary me-1"></i>{" "}
+                                CCCD trước
+                              </a>
+                            )}
+                            {app.citizenIdBackFile && (
+                              <a
+                                href={`http://localhost:5000${app.citizenIdBackFile}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                style={styles.fileLink}
+                              >
+                                <i className="bi bi-card-image text-primary me-1"></i>{" "}
+                                CCCD sau
                               </a>
                             )}
                           </div>

@@ -184,7 +184,7 @@ export default function UserManagement() {
   };
 
   if (loading)
-    return <p style={{ padding: 20 }}>⏳ Đang tải danh sách user...</p>;
+    return <p style={{ padding: 20 }}>Đang tải danh sách user...</p>;
 
   const stats = {
     total: users.length,
@@ -345,7 +345,7 @@ export default function UserManagement() {
                     style={styles.fileInput}
                   />
                   {uploading && (
-                    <p style={{ color: "#f59e0b" }}>⏳ Đang tải...</p>
+                    <p style={{ color: "#f59e0b" }}>Đang tải...</p>
                   )}
                 </div>
               </div>

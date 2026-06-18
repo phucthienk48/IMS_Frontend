@@ -1,31 +1,17 @@
-// src/layouts/UserLayout.jsx
-
 import { Outlet } from "react-router-dom";
 import Header from "../components/Header";
+import Footer from "../components/Footer";
 
 export default function UserLayout() {
   return (
-    <div
-      style={{
-        background: "#f0f9ff",
-        minHeight: "100vh",
-      }}
-    >
-      {/* Header */}
+    <div className="ims-layout">
       <Header />
-
-      {/* Main Content */}
-      <main
-        className="container my-4"
-        style={{
-          background: "#fff",
-          borderRadius: "8px",
-          padding: "20px",
-          minHeight: "80vh",
-        }}
-      >
-        <Outlet />
+      <main className="ims-main">
+        <div className="ims-page">
+          <Outlet />
+        </div>
       </main>
+      <Footer />
     </div>
   );
 }

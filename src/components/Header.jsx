@@ -11,254 +11,293 @@ export default function Header() {
   };
 
   return (
-    <header style={styles.header}>
-      {/* Logo */}
-      <div style={styles.logo} onClick={() => navigate("/")}>
-        <div style={styles.logoIcon}>
-          <i className="bi bi-mortarboard-fill"></i>
+    <header className="ims-public-header" style={styles.headerContainer}>
+      {/* Tier 1: CUSC Brand Header */}
+      <div className="ims-public-topbar" style={styles.topHeader}>
+        <div className="ims-public-brand" style={styles.logoGroup} onClick={() => navigate("/")}>
+          {/* Stylized CSS CUSC Logo */}
+          <div style={styles.logoBox}>
+            <div style={styles.logoTriangle}></div>
+            <span style={styles.logoTextMain}>Cusc</span>
+            <span style={styles.logoTextRegistered}>®</span>
+          </div>
+          <div className="ims-public-brand-text" style={styles.logoTextGroup}>
+            <h1 style={styles.brandTitle}>TRUNG TÂM CÔNG NGHỆ PHẦN MỀM</h1>
+            <h2 style={styles.brandSubtitle}>TRƯỜNG ĐẠI HỌC CẦN THƠ</h2>
+          </div>
         </div>
 
-        <div style={styles.logoText}>
-          <span style={styles.logoMain}>IMS</span>
-          <span style={styles.logoSub}>INTERNSHIP SYSTEM</span>
+        {/* Top Right Actions */}
+        <div className="ims-public-actions" style={styles.topRight}>
+          <div style={styles.langSelector}>
+            <span style={styles.flagIcon}>VI</span>
+          </div>
+
+          {user ? (
+            <div className="ims-public-user" style={styles.userSection}>
+              <div style={styles.userInfo}>
+                <span style={styles.userName}>{user.username}</span>
+                <span style={styles.userRole}>{roleLabel(user.role)}</span>
+              </div>
+              <NavLink to="/profile" style={styles.profileBtn} title="Hồ sơ cá nhân">
+                <i className="bi bi-person-circle"></i>
+              </NavLink>
+              <div style={styles.divider}></div>
+              <button style={styles.logoutBtn} onClick={handleLogout}>
+                <i className="bi bi-box-arrow-right"></i> Đăng xuất
+              </button>
+            </div>
+          ) : (
+            <button style={styles.loginBtn} onClick={() => navigate("/login")}>
+              Đăng nhập
+            </button>
+          )}
         </div>
       </div>
 
-      {/* Menu */}
-      <nav style={styles.menu}>
-        <NavLink
-          to="/"
-          end
-          style={({ isActive }) => ({
-            ...styles.link,
-            ...(isActive ? styles.activeLink : {}),
-          })}
-        >
-          <i className="bi bi-house-fill"></i>
-          Home
-        </NavLink>
-
-        <NavLink
-          to="/topics"
-          style={({ isActive }) => ({
-            ...styles.link,
-            ...(isActive ? styles.activeLink : {}),
-          })}
-        >
-          <i className="bi bi-journal-bookmark-fill"></i>
-          Đề tài
-        </NavLink>
-
-        <NavLink
-          to="/application"
-          style={({ isActive }) => ({
-            ...styles.link,
-            ...(isActive ? styles.activeLink : {}),
-          })}
-        >
-          <i className="bi bi-file-earmark-text-fill"></i>
-          Thực tập
-        </NavLink>
-
-        <NavLink
-          to="/internship-result"
-          style={({ isActive }) => ({
-            ...styles.link,
-            ...(isActive ? styles.activeLink : {}),
-          })}
-        >
-          <i className="bi bi-clipboard-check-fill"></i>
-          Kết quả
-        </NavLink>
-      </nav>
-
-      {/* User */}
-      <div style={styles.actionArea}>
-        {!user ? (
-          <button
-            style={styles.loginBtn}
-            onClick={() => navigate("/login")}
+      {/* Tier 2: Blue Navigation Bar */}
+      <div className="ims-public-nav-bar" style={styles.navBar}>
+        <nav className="ims-public-nav" style={styles.navMenu}>
+          <NavLink
+            className="ims-public-nav-link"
+            to="/"
+            end
+            style={({ isActive }) => ({
+              ...styles.navLink,
+              ...(isActive ? styles.navLinkActive : {}),
+            })}
           >
-            Đăng nhập
-          </button>
-        ) : (
-          <div style={styles.userBox}>
-            <div style={styles.userInfo}>
-              <span style={styles.username}>{user.username}</span>
-              <span style={styles.role}>Sinh viên</span>
-            </div>
+            <i className="bi bi-house-fill" style={styles.navIcon}></i> Trang chủ
+          </NavLink>
 
-            <NavLink
-              to="/profile"
-              style={styles.profileBtn}
-              title="Hồ sơ cá nhân"
-            >
-              <i className="bi bi-person-fill"></i>
-            </NavLink>
+          <NavLink
+            className="ims-public-nav-link"
+            to="/topics"
+            style={({ isActive }) => ({
+              ...styles.navLink,
+              ...(isActive ? styles.navLinkActive : {}),
+            })}
+          >
+            <i className="bi bi-journal-bookmark-fill" style={styles.navIcon}></i> Danh sách đề tài
+          </NavLink>
 
-            <div style={styles.divider}></div>
+          <NavLink
+            className="ims-public-nav-link"
+            to="/application"
+            style={({ isActive }) => ({
+              ...styles.navLink,
+              ...(isActive ? styles.navLinkActive : {}),
+            })}
+          >
+            <i className="bi bi-file-earmark-text-fill" style={styles.navIcon}></i> Hồ sơ thực tập
+          </NavLink>
 
-            <button style={styles.logoutBtn} onClick={handleLogout}>
-              <i className="bi bi-box-arrow-right"></i>
-              Đăng xuất
-            </button>
-          </div>
-        )}
+          <NavLink
+            className="ims-public-nav-link"
+            to="/internship-result"
+            style={({ isActive }) => ({
+              ...styles.navLink,
+              ...(isActive ? styles.navLinkActive : {}),
+            })}
+          >
+            <i className="bi bi-clipboard-check-fill" style={styles.navIcon}></i> Kết quả đánh giá
+          </NavLink>
+        </nav>
       </div>
     </header>
   );
 }
 
 const styles = {
-  header: {
-    height: "90px",
-    background:
-      "linear-gradient(135deg,#08203a 0%,#1d4ed8 50%,#3b82f6 100%)",
-    color: "#fff",
+  headerContainer: {
     display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    padding: "0 35px",
+    flexDirection: "column",
+    width: "100%",
+    backgroundColor: "#fff",
+    boxShadow: "0 1px 2px rgba(15,23,42,0.08)",
     position: "sticky",
     top: 0,
     zIndex: 1000,
-    boxShadow: "0 10px 30px rgba(0,0,0,0.15)",
+    fontFamily: "'Outfit', 'Inter', sans-serif",
   },
-
-  /* Logo */
-  logo: {
+  topHeader: {
     display: "flex",
+    justifyContent: "space-between",
     alignItems: "center",
-    gap: "14px",
-    cursor: "pointer",
+    padding: "10px 40px",
+    background: "#fff",
   },
-
-  logoIcon: {
-    width: "54px",
-    height: "54px",
-    borderRadius: "14px",
-    background: "rgba(255,255,255,0.15)",
-    border: "1px solid rgba(255,255,255,0.2)",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    fontSize: "26px",
-  },
-
-  logoText: {
-    display: "flex",
-    flexDirection: "column",
-  },
-
-  logoMain: {
-    fontSize: "24px",
-    fontWeight: "800",
-    letterSpacing: "2px",
-  },
-
-  logoSub: {
-    fontSize: "12px",
-    color: "rgba(255,255,255,0.75)",
-    letterSpacing: "1px",
-  },
-
-  /* Menu */
-  menu: {
+  logoGroup: {
     display: "flex",
     alignItems: "center",
     gap: "15px",
+    cursor: "pointer",
   },
-
-  link: {
+  logoBox: {
+    position: "relative",
     display: "flex",
     alignItems: "center",
-    gap: "8px",
-    textDecoration: "none",
-    color: "#fff",
-    fontSize: "18px",
+    justifyContent: "center",
+    height: "55px",
+    padding: "0 10px",
+  },
+  logoTriangle: {
+    position: "absolute",
+    left: 0,
+    top: "10%",
+    width: 0,
+    height: 0,
+    borderLeft: "25px solid transparent",
+    borderRight: "25px solid transparent",
+    borderBottom: "40px solid #f29111",
+    opacity: 0.6,
+    zIndex: 1,
+  },
+  logoTextMain: {
+    fontSize: "30px",
+    fontWeight: "900",
+    color: "#083c73",
+    zIndex: 2,
+    letterSpacing: 0,
+    fontFamily: "Georgia, serif",
+  },
+  logoTextRegistered: {
+    fontSize: "10px",
+    color: "#083c73",
+    alignSelf: "flex-start",
+    marginTop: "8px",
+    zIndex: 2,
+  },
+  logoTextGroup: {
+    display: "flex",
+    flexDirection: "column",
+    justifyContent: "center",
+  },
+  brandTitle: {
+    fontSize: "16px",
+    fontWeight: "800",
+    color: "#083c73",
+    margin: 0,
+    letterSpacing: 0,
+  },
+  brandSubtitle: {
+    fontSize: "13px",
     fontWeight: "700",
-    padding: "12px 18px",
-    borderRadius: "14px",
+    color: "#083c73",
+    margin: 0,
+    letterSpacing: 0,
+    opacity: 0.9,
   },
-
-  activeLink: {
-    background: "rgba(255,255,255,0.2)",
-  },
-
-  /* User */
-  actionArea: {
+  topRight: {
     display: "flex",
     alignItems: "center",
+    gap: "20px",
   },
-
-  userBox: {
+  langSelector: {
+    display: "flex",
+    alignItems: "center",
+    borderRight: "1px solid #e2e8f0",
+    paddingRight: "15px",
+  },
+  flagIcon: {
+    fontSize: "12px",
+    fontWeight: "800",
+    color: "#083c73",
+    cursor: "pointer",
+  },
+  userSection: {
     display: "flex",
     alignItems: "center",
     gap: "12px",
-    padding: "8px 12px",
-    borderRadius: "18px",
-    background: "rgba(255,255,255,0.12)",
-    border: "1px solid rgba(255,255,255,0.15)",
   },
-
   userInfo: {
     display: "flex",
     flexDirection: "column",
-    textAlign: "right",
+    alignItems: "flex-end",
   },
-
-  username: {
-    fontSize: "15px",
+  userName: {
+    fontSize: "14px",
     fontWeight: "700",
+    color: "#334155",
   },
-
-  role: {
-    fontSize: "12px",
-    color: "rgba(255,255,255,0.75)",
+  userRole: {
+    fontSize: "11px",
+    color: "#64748b",
+    fontWeight: "500",
   },
-
   profileBtn: {
-    width: "46px",
-    height: "46px",
-    borderRadius: "50%",
-    background: "rgba(255,255,255,0.15)",
-    border: "2px solid rgba(255,255,255,0.2)",
+    fontSize: "24px",
+    color: "#083c73",
     display: "flex",
-    justifyContent: "center",
     alignItems: "center",
     textDecoration: "none",
-    color: "#fff",
-    fontSize: "20px",
+    transition: "color 0.2s",
   },
-
   divider: {
     width: "1px",
-    height: "34px",
-    background: "rgba(255,255,255,0.2)",
+    height: "24px",
+    backgroundColor: "#cbd5e1",
   },
-
-  loginBtn: {
-    padding: "12px 22px",
-    border: "none",
-    borderRadius: "14px",
-    background: "#fff",
-    color: "#1d4ed8",
-    fontWeight: "700",
-    fontSize: "15px",
-    cursor: "pointer",
-  },
-
   logoutBtn: {
     display: "flex",
     alignItems: "center",
-    gap: "8px",
-    padding: "12px 18px",
+    gap: "6px",
+    padding: "8px 14px",
     border: "none",
-    borderRadius: "14px",
-    background: "rgba(239,68,68,0.25)",
-    color: "#fff",
+    borderRadius: "8px",
+    backgroundColor: "rgba(239, 68, 68, 0.1)",
+    color: "#dc2626",
+    fontSize: "13px",
     fontWeight: "700",
-    fontSize: "15px",
     cursor: "pointer",
+    transition: "all 0.2s",
+  },
+  loginBtn: {
+    padding: "8px 18px",
+    backgroundColor: "#083c73",
+    color: "#fff",
+    border: "none",
+    borderRadius: "8px",
+    fontWeight: "700",
+    fontSize: "14px",
+    cursor: "pointer",
+    transition: "background 0.2s",
+  },
+  navBar: {
+    background: "#083c73",
+    padding: "0 40px",
+    borderBottom: "3px solid #f29111",
+  },
+  navMenu: {
+    display: "flex",
+    alignItems: "center",
+    gap: "10px",
+    maxWidth: "1200px",
+    margin: "0 auto",
+  },
+  navLink: {
+    display: "flex",
+    alignItems: "center",
+    gap: "8px",
+    textDecoration: "none",
+    color: "#fff",
+    fontSize: "14px",
+    fontWeight: "700",
+    padding: "14px 20px",
+    transition: "all 0.2s",
+    position: "relative",
+  },
+  navLinkActive: {
+    background: "#f29111",
+    color: "#fff",
+  },
+  navIcon: {
+    fontSize: "16px",
   },
 };
+
+function roleLabel(role) {
+  if (role === "admin") return "Quản trị viên";
+  if (role === "lecturer") return "Giảng viên";
+  return "Sinh viên";
+}

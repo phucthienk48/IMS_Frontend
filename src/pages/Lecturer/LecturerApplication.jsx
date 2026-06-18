@@ -94,7 +94,7 @@ export default function LecturerApplication() {
   };
 
   if (loading)
-    return <p style={{ padding: 20 }}>⏳ Đang tải hồ sơ đăng ký thực tập...</p>;
+    return <p style={{ padding: 20 }}>Đang tải hồ sơ đăng ký thực tập...</p>;
 
   // Thống kê số lượng
   const stats = {
@@ -328,6 +328,28 @@ export default function LecturerApplication() {
                                   Bảng điểm
                                 </a>
                               )}
+                              {app.citizenIdFrontFile && (
+                                <a
+                                  href={`http://localhost:5000${app.citizenIdFrontFile}`}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  style={styles.fileLink}
+                                >
+                                  <i className="bi bi-card-image text-primary me-1"></i>{" "}
+                                  CCCD trước
+                                </a>
+                              )}
+                              {app.citizenIdBackFile && (
+                                <a
+                                  href={`http://localhost:5000${app.citizenIdBackFile}`}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  style={styles.fileLink}
+                                >
+                                  <i className="bi bi-card-image text-primary me-1"></i>{" "}
+                                  CCCD sau
+                                </a>
+                              )}
                             </div>
                           </td>
                           <td style={styles.td}>
@@ -517,6 +539,28 @@ export default function LecturerApplication() {
                                 Bảng điểm
                               </a>
                             )}
+                            {app.citizenIdFrontFile && (
+                              <a
+                                href={`http://localhost:5000${app.citizenIdFrontFile}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                style={styles.fileLink}
+                              >
+                                <i className="bi bi-card-image text-primary me-1"></i>{" "}
+                                CCCD trước
+                              </a>
+                            )}
+                            {app.citizenIdBackFile && (
+                              <a
+                                href={`http://localhost:5000${app.citizenIdBackFile}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                style={styles.fileLink}
+                              >
+                                <i className="bi bi-card-image text-primary me-1"></i>{" "}
+                                CCCD sau
+                              </a>
+                            )}
                           </div>
                         </td>
                         <td style={styles.td}>
@@ -609,20 +653,20 @@ export default function LecturerApplication() {
 
 const styles = {
   container: {
-    minHeight: "100vh",
-    padding: "28px",
-    background:
-      "linear-gradient(180deg, #f8fbff 0%, #eef4ff 50%, #f8fafc 100%)",
-    fontFamily: "'Inter', Arial, sans-serif",
+    minHeight: "70vh",
+    padding: 0,
+    background: "transparent",
+    fontFamily: "'Outfit', 'Inter', Arial, sans-serif",
   },
 
   header: {
-    marginBottom: "28px",
+    marginBottom: "18px",
     background: "#ffffff",
-    borderRadius: "22px",
-    padding: "24px 28px",
-    boxShadow: "0 10px 35px rgba(37,99,235,0.08)",
-    border: "1px solid #e2e8f0",
+    borderRadius: "8px",
+    padding: "18px 20px",
+    boxShadow: "0 1px 2px rgba(15,23,42,0.06)",
+    border: "1px solid #d7dee8",
+    borderLeft: "4px solid #f29111",
   },
 
   backBtn: {
@@ -630,11 +674,11 @@ const styles = {
     background: "#eff6ff",
     color: "#2563eb",
     border: "1px solid #bfdbfe",
-    borderRadius: "12px",
+    borderRadius: "8px",
     cursor: "pointer",
     fontSize: "14px",
     fontWeight: "600",
-    marginBottom: "18px",
+    marginBottom: "12px",
     transition: "0.25s ease",
     display: "flex",
     alignItems: "center",
@@ -642,19 +686,19 @@ const styles = {
   },
 
   pageTitle: {
-    fontSize: "32px",
+    fontSize: "22px",
     fontWeight: "800",
-    color: "#0f172a",
-    margin: "0 0 8px 0",
+    color: "#083c73",
+    margin: "0 0 6px 0",
     display: "flex",
     alignItems: "center",
     gap: 12,
-    letterSpacing: "-0.5px",
+    letterSpacing: 0,
   },
 
   titleIcon: {
-    color: "#2563eb",
-    fontSize: "28px",
+    color: "#083c73",
+    fontSize: "22px",
   },
 
   subTitle: {
@@ -668,14 +712,14 @@ const styles = {
     display: "grid",
     gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
     gap: "20px",
-    marginBottom: "28px",
+    marginBottom: "18px",
   },
 
   statsCard: {
     background: "#ffffff",
-    padding: "22px",
-    borderRadius: "20px",
-    boxShadow: "0 8px 24px rgba(15,23,42,0.06)",
+    padding: "16px 18px",
+    borderRadius: "8px",
+    boxShadow: "0 1px 2px rgba(15,23,42,0.06)",
     display: "flex",
     flexDirection: "column",
     gap: "8px",
@@ -690,21 +734,21 @@ const styles = {
   },
 
   statsValue: {
-    fontSize: "32px",
+    fontSize: "24px",
     fontWeight: "800",
     lineHeight: 1.2,
   },
 
   filterBar: {
     display: "flex",
-    gap: "16px",
-    marginBottom: "24px",
+    gap: "12px",
+    marginBottom: "18px",
     flexWrap: "wrap",
     background: "#ffffff",
-    padding: "20px",
-    borderRadius: "18px",
-    boxShadow: "0 8px 24px rgba(15,23,42,0.05)",
-    border: "1px solid #e2e8f0",
+    padding: "14px",
+    borderRadius: "8px",
+    boxShadow: "0 1px 2px rgba(15,23,42,0.06)",
+    border: "1px solid #d7dee8",
   },
 
   searchBox: {
@@ -725,8 +769,8 @@ const styles = {
   searchInput: {
     width: "100%",
     padding: "12px 16px 12px 42px",
-    borderRadius: "14px",
-    border: "1px solid #dbe4f0",
+    borderRadius: "8px",
+    border: "1px solid #c5cfdd",
     fontSize: "14px",
     outline: "none",
     background: "#f8fafc",
@@ -735,8 +779,8 @@ const styles = {
 
   filterSelect: {
     padding: "12px 16px",
-    borderRadius: "14px",
-    border: "1px solid #dbe4f0",
+    borderRadius: "8px",
+    border: "1px solid #c5cfdd",
     fontSize: "14px",
     background: "#f8fafc",
     outline: "none",
@@ -746,12 +790,14 @@ const styles = {
   },
 
   groupWrapper: {
-    marginBottom: "28px",
+    marginBottom: "18px",
     background: "#ffffff",
-    borderRadius: "22px",
+    borderRadius: "8px",
     overflow: "hidden",
-    border: "1px solid #e2e8f0",
-    boxShadow: "0 12px 32px rgba(15,23,42,0.05)",
+    border: "1px solid #d7dee8",
+    boxShadow: "0 1px 2px rgba(15,23,42,0.06)",
+    maxWidth: "100%",
+    minWidth: 0,
   },
 
   groupHeader: {
@@ -761,13 +807,14 @@ const styles = {
     gap: "16px",
     padding: "22px 24px",
     background:
-      "linear-gradient(90deg, rgba(239,246,255,1) 0%, rgba(248,250,252,1) 100%)",
+      "#f8fafc",
+    borderBottom: "1px solid #e5eaf1",
   },
 
   groupTopicTitle: {
     margin: 0,
-    fontFamily: '"Times New Roman", Times, serif',
-    fontSize: "24px",
+    fontFamily: "'Outfit', 'Inter', Arial, sans-serif",
+    fontSize: "18px",
     fontWeight: "800",
     color: "#0f172a",
     display: "flex",
@@ -798,15 +845,16 @@ const styles = {
     background: "#2563eb",
     color: "#fff",
     padding: "10px 16px",
-    borderRadius: "14px",
+    borderRadius: "8px",
     fontSize: "14px",
     fontWeight: "700",
     whiteSpace: "nowrap",
-    boxShadow: "0 4px 14px rgba(37,99,235,0.25)",
+    boxShadow: "none",
   },
 
   tableWrapper: {
     overflowX: "auto",
+    maxWidth: "100%",
   },
 
   table: {
@@ -877,7 +925,7 @@ const styles = {
     alignItems: "center",
     gap: 6,
     padding: "8px 12px",
-    borderRadius: "10px",
+    borderRadius: "8px",
     border: "1px solid #dbeafe",
     background: "#eff6ff",
     color: "#1d4ed8",
@@ -896,7 +944,7 @@ const styles = {
 
   actionBtn: {
     padding: "10px 14px",
-    borderRadius: "12px",
+    borderRadius: "8px",
     border: "none",
     fontSize: "13px",
     fontWeight: "700",
@@ -910,30 +958,30 @@ const styles = {
   },
 
   approveBtn: {
-    background: "linear-gradient(135deg, #22c55e, #16a34a)",
+    background: "#15803d",
     color: "#fff",
-    boxShadow: "0 6px 16px rgba(34,197,94,0.25)",
+    boxShadow: "none",
   },
 
   rejectBtn: {
-    background: "linear-gradient(135deg, #ef4444, #dc2626)",
+    background: "#b91c1c",
     color: "#fff",
-    boxShadow: "0 6px 16px rgba(239,68,68,0.25)",
+    boxShadow: "none",
   },
 
   resetBtn: {
-    background: "linear-gradient(135deg, #64748b, #475569)",
+    background: "#475569",
     color: "#fff",
-    boxShadow: "0 6px 16px rgba(100,116,139,0.2)",
+    boxShadow: "none",
   },
 
   emptyBox: {
     background: "#ffffff",
-    borderRadius: "24px",
+    borderRadius: "8px",
     padding: "60px 20px",
     textAlign: "center",
     border: "1px dashed #cbd5e1",
-    boxShadow: "0 8px 24px rgba(15,23,42,0.04)",
+    boxShadow: "0 1px 2px rgba(15,23,42,0.06)",
   },
 
   pagination: {
@@ -948,7 +996,7 @@ const styles = {
     minWidth: "40px",
     height: "40px",
     padding: "0 12px",
-    borderRadius: "12px",
+    borderRadius: "8px",
     border: "1px solid #cbd5e1",
     background: "#ffffff",
     color: "#1e293b",
@@ -961,7 +1009,7 @@ const styles = {
     background: "#2563eb",
     color: "#ffffff",
     border: "1px solid #2563eb",
-    boxShadow: "0 6px 16px rgba(37,99,235,0.25)",
+    boxShadow: "none",
   },
 
   pageBtnDisabled: {

@@ -217,10 +217,10 @@ function InfoRow({ icon, label, value, highlight = false }) {
 
 const styles = {
   container: {
-    padding: "24px",
-    minHeight: "100vh",
-    background: "#f8fafc",
-    fontFamily: "'Inter', 'Segoe UI', Arial, sans-serif",
+    padding: 0,
+    minHeight: "70vh",
+    background: "transparent",
+    fontFamily: "'Outfit', 'Inter', Arial, sans-serif",
   },
   loadingWrap: {
     display: "flex",
@@ -247,11 +247,17 @@ const styles = {
     alignItems: "flex-end",
     flexWrap: "wrap",
     gap: 16,
-    marginBottom: 24,
+    marginBottom: 18,
+    background: "#fff",
+    border: "1px solid #d7dee8",
+    borderLeft: "4px solid #f29111",
+    borderRadius: 8,
+    padding: "18px 20px",
+    boxShadow: "0 1px 2px rgba(15,23,42,0.06)",
   },
   backBtn: {
     padding: "6px 14px",
-    background: "transparent",
+    background: "#eff6ff",
     color: "#2563eb",
     border: "1px solid #2563eb",
     borderRadius: 8,
@@ -261,9 +267,9 @@ const styles = {
     marginBottom: 10,
   },
   pageTitle: {
-    fontSize: 26,
+    fontSize: 22,
     fontWeight: 800,
-    color: "#1e3a8a",
+    color: "#083c73",
     margin: "0 0 4px",
     display: "flex",
     alignItems: "center",
@@ -281,13 +287,14 @@ const styles = {
     marginBottom: 24,
   },
   statsCard: {
-    padding: "18px 20px",
-    borderRadius: 12,
+    padding: "16px 18px",
+    borderRadius: 8,
     display: "flex",
     flexDirection: "column",
     gap: 6,
-    boxShadow: "0 2px 8px rgba(0,0,0,0.04)",
+    boxShadow: "0 1px 2px rgba(15,23,42,0.06)",
     background: "#fff",
+    border: "1px solid #d7dee8",
   },
   statsLabel: {
     fontSize: 13,
@@ -295,15 +302,16 @@ const styles = {
     fontWeight: 500,
   },
   statsValue: {
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: 800,
   },
   emptyBox: {
     textAlign: "center",
     padding: "56px 24px",
     background: "#fff",
-    borderRadius: 16,
-    border: "2px dashed #e2e8f0",
+    borderRadius: 8,
+    border: "1px dashed #cbd5e1",
+    boxShadow: "0 1px 2px rgba(15,23,42,0.06)",
   },
   emptyIcon: {
     fontSize: 46,
@@ -321,9 +329,9 @@ const styles = {
   },
   card: {
     background: "#fff",
-    borderRadius: 14,
-    border: "1px solid #e2e8f0",
-    boxShadow: "0 6px 16px rgba(15,23,42,0.05)",
+    borderRadius: 8,
+    border: "1px solid #d7dee8",
+    boxShadow: "0 1px 2px rgba(15,23,42,0.06)",
     overflow: "hidden",
   },
   cardHeader: {
@@ -333,12 +341,12 @@ const styles = {
     gap: 12,
     padding: "16px 18px",
     borderBottom: "1px solid #f1f5f9",
-    background: "linear-gradient(135deg, #f8faff 0%, #eff6ff 100%)",
+    background: "#f8fafc",
   },
   topicName: {
     fontSize: 15,
     fontWeight: 700,
-    color: "#1e3a8a",
+    color: "#083c73",
   },
   topicMeta: {
     fontSize: 12,

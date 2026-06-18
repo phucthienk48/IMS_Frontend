@@ -187,7 +187,7 @@ export default function Profile() {
     }
   };
 
-  if (loading) return <p style={{ padding: 20 }}>⏳ Đang tải hồ sơ...</p>;
+  if (loading) return <p style={{ padding: 20 }}>Đang tải hồ sơ...</p>;
 
   if (!user) return null;
 
@@ -275,11 +275,11 @@ export default function Profile() {
                   style={styles.fileInput}
                 />
                 {uploading && (
-                  <p style={{ color: "#f59e0b" }}>⏳ Đang tải...</p>
+                  <p style={{ color: "#f59e0b" }}>Đang tải...</p>
                 )}
                 {avatarFile && (
                   <p style={{ color: "#16a34a", fontSize: "13px" }}>
-                    ✓ {avatarFile.name}
+                    Đã chọn: {avatarFile.name}
                   </p>
                 )}
               </div>

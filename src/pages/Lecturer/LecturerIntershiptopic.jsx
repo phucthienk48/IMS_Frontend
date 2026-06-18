@@ -1,6 +1,25 @@
 import { useEffect, useState } from "react";
+import {
+  defaultInternshipCenter,
+  fetchInternshipCenter,
+} from "../../config/internshipCenter";
 
 const API_BASE = "http://localhost:5000/api/internship-topics";
+
+const emptyTopicForm = {
+  topicname: "",
+  description: "",
+  requirement: "",
+  workDaysPerWeek: "",
+  workHoursPerDay: "",
+  startday: "",
+  endday: "",
+};
+
+const numberOrBlank = (value) =>
+  value === undefined || value === null ? "" : value;
+
+const nullableNumber = (value) => (value === "" ? null : Number(value));
 
 export default function LecturerIntershiptopic() {
   const user = JSON.parse(localStorage.getItem("user")) || {};
@@ -11,16 +30,8 @@ export default function LecturerIntershiptopic() {
   const [search, setSearch] = useState("");
   const [editingId, setEditingId] = useState(null);
   const [showCreateForm, setShowCreateForm] = useState(false);
-  const [form, setForm] = useState({
-    department: "",
-    position: "",
-    topicname: "",
-    description: "",
-    requirement: "",
-    quantity: 1,
-    startday: "",
-    endday: "",
-  });
+  const [form, setForm] = useState(emptyTopicForm);
+  const [center, setCenter] = useState(defaultInternshipCenter);
 
   const fetchTopics = async () => {
     try {
@@ -43,42 +54,42 @@ export default function LecturerIntershiptopic() {
 
   useEffect(() => {
     fetchTopics();
+    fetchInternshipCenter("http://localhost:5000").then(setCenter);
   }, [lecturerId]);
 
   const handleChange = (e) => {
-    const { name, value } = e.target;
+    const { name, value, type, checked } = e.target;
+    const nextValue =
+      type === "checkbox"
+        ? checked
+        : ["workDaysPerWeek", "workHoursPerDay"].includes(name)
+          ? value === ""
+            ? ""
+            : Number(value)
+          : value;
+
     setForm((prev) => ({
       ...prev,
-      [name]: name === "quantity" ? Number(value) : value,
+      [name]: nextValue,
     }));
   };
 
   const handleEdit = (topic) => {
     setEditingId(topic._id);
     setForm({
-      department: topic.department,
-      position: topic.position,
-      topicname: topic.topicname,
-      description: topic.description,
-      requirement: topic.requirement,
-      quantity: topic.quantity,
-      startday: topic.startday.split("T")[0],
-      endday: topic.endday.split("T")[0],
+      topicname: topic.topicname || "",
+      description: topic.description || "",
+      requirement: topic.requirement || "",
+      workDaysPerWeek: numberOrBlank(topic.workDaysPerWeek),
+      workHoursPerDay: numberOrBlank(topic.workHoursPerDay),
+      startday: topic.startday ? topic.startday.split("T")[0] : "",
+      endday: topic.endday ? topic.endday.split("T")[0] : "",
     });
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const resetForm = () => {
-    setForm({
-      department: "",
-      position: "",
-      topicname: "",
-      description: "",
-      requirement: "",
-      quantity: 1,
-      startday: "",
-      endday: "",
-    });
+    setForm(emptyTopicForm);
   };
 
   const handleCancel = () => {
@@ -100,9 +111,28 @@ export default function LecturerIntershiptopic() {
       return;
     }
 
+    if (form.startday && form.endday && form.startday > form.endday) {
+      alert("Ngày kết thúc phải sau ngày bắt đầu.");
+      return;
+    }
+    if (form.workDaysPerWeek !== "" && (form.workDaysPerWeek < 1 || form.workDaysPerWeek > 7)) {
+      alert("Số ngày thực tập mỗi tuần phải từ 1 đến 7.");
+      return;
+    }
+    if (form.workHoursPerDay !== "" && (form.workHoursPerDay < 1 || form.workHoursPerDay > 24)) {
+      alert("Số giờ thực tập mỗi ngày phải từ 1 đến 24.");
+      return;
+    }
+
+    const payload = {
+      ...form,
+      workDaysPerWeek: nullableNumber(form.workDaysPerWeek),
+      workHoursPerDay: nullableNumber(form.workHoursPerDay),
+      lecturer: lecturerId,
+    };
+
     if (editingId) {
       try {
-        const payload = { ...form, lecturer: lecturerId };
         const res = await fetch(`${API_BASE}/${editingId}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
@@ -124,11 +154,10 @@ export default function LecturerIntershiptopic() {
       }
     } else {
       try {
-        const payload = { ...form, lecturer: lecturerId, status: "open" };
         const res = await fetch(API_BASE, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
+          body: JSON.stringify({ ...payload, status: "open" }),
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.message || "Tạo đề tài thất bại");
@@ -188,14 +217,22 @@ export default function LecturerIntershiptopic() {
   };
 
   const filteredTopics = topics.filter((topic) => {
-    const query = search.toLowerCase();
+    const query = search.trim().toLowerCase();
     return (
-      topic.topicname.toLowerCase().includes(query) ||
-      topic.department.toLowerCase().includes(query) ||
-      topic.position.toLowerCase().includes(query) ||
-      topic.description.toLowerCase().includes(query)
+      (topic.topicname || "").toLowerCase().includes(query) ||
+      (topic.description || "").toLowerCase().includes(query) ||
+      (topic.requirement || "").toLowerCase().includes(query) ||
+      (topic.lecturer?.username || "").toLowerCase().includes(query)
     );
   });
+
+  const formatDate = (value) => {
+    if (!value) return "Chưa cập nhật";
+    const date = new Date(value);
+    return Number.isNaN(date.getTime())
+      ? "Chưa cập nhật"
+      : date.toLocaleDateString("vi-VN");
+  };
 
   if (loading) {
     return (
@@ -216,14 +253,10 @@ export default function LecturerIntershiptopic() {
         .lit-row:hover td { background: #f8faff !important; }
 
         .lit-edit-btn:hover {
-          background: linear-gradient(135deg, #2563eb, #1d4ed8) !important;
-          transform: translateY(-1px);
-          box-shadow: 0 8px 20px rgba(37,99,235,0.35) !important;
+          background: #1d4ed8 !important;
         }
         .lit-delete-btn:hover {
-          background: linear-gradient(135deg, #dc2626, #b91c1c) !important;
-          transform: translateY(-1px);
-          box-shadow: 0 8px 20px rgba(220,38,38,0.35) !important;
+          background: #991b1b !important;
         }
 
         .lit-input:focus, .lit-textarea:focus {
@@ -264,22 +297,18 @@ export default function LecturerIntershiptopic() {
         }
 
         .lit-status-btn-close {
-          background: linear-gradient(135deg, #f59e0b, #d97706) !important;
-          box-shadow: 0 4px 12px rgba(245,158,11,0.2) !important;
+          background: #d97706 !important;
+          box-shadow: none !important;
         }
         .lit-status-btn-close:hover {
-          background: linear-gradient(135deg, #d97706, #b45309) !important;
-          transform: translateY(-1px);
-          box-shadow: 0 8px 20px rgba(245,158,11,0.35) !important;
+          background: #b45309 !important;
         }
         .lit-status-btn-open {
-          background: linear-gradient(135deg, #10b981, #059669) !important;
-          box-shadow: 0 4px 12px rgba(16,185,129,0.2) !important;
+          background: #15803d !important;
+          box-shadow: none !important;
         }
         .lit-status-btn-open:hover {
-          background: linear-gradient(135deg, #059669, #047857) !important;
-          transform: translateY(-1px);
-          box-shadow: 0 8px 20px rgba(16,185,129,0.35) !important;
+          background: #166534 !important;
         }
       `}</style>
 
@@ -308,7 +337,7 @@ export default function LecturerIntershiptopic() {
             <div
               style={{
                 ...styles.statCard,
-                background: "linear-gradient(135deg, #dcfce7, #bbf7d0)",
+                background: "#f0fdf4",
                 border: "1px solid #86efac",
               }}
             >
@@ -332,7 +361,7 @@ export default function LecturerIntershiptopic() {
           <input
             className="lit-search-input"
             style={styles.searchInput}
-            placeholder="Tìm theo tên đề tài, bộ môn hoặc vị trí..."
+            placeholder="Tìm theo tên đề tài, nội dung công việc hoặc cán bộ phụ trách..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -374,7 +403,7 @@ export default function LecturerIntershiptopic() {
             </div>
 
             <form style={styles.formGrid} onSubmit={handleSubmit}>
-              <div style={styles.fieldGroup}>
+              <div style={{ ...styles.fieldGroup, gridColumn: "1 / -1" }}>
                 <label style={styles.label}>Tên đề tài</label>
                 <input
                   className="lit-input"
@@ -382,50 +411,12 @@ export default function LecturerIntershiptopic() {
                   name="topicname"
                   value={form.topicname}
                   onChange={handleChange}
-                  placeholder="Nhập tên đề tài"
+                  placeholder="Nhập tên đề tài thực tập"
                   required
                 />
               </div>
 
-              <div style={styles.fieldGroup}>
-                <label style={styles.label}>Bộ môn</label>
-                <input
-                  className="lit-input"
-                  style={styles.input}
-                  name="department"
-                  value={form.department}
-                  onChange={handleChange}
-                  placeholder="Nhập tên bộ môn"
-                  required
-                />
-              </div>
-
-              <div style={styles.fieldGroup}>
-                <label style={styles.label}>Vị trí / Loại đề tài</label>
-                <input
-                  className="lit-input"
-                  style={styles.input}
-                  name="position"
-                  value={form.position}
-                  onChange={handleChange}
-                  placeholder="Nhập vị trí hoặc loại đề tài"
-                  required
-                />
-              </div>
-
-              <div style={styles.fieldGroup}>
-                <label style={styles.label}>Số lượng sinh viên</label>
-                <input
-                  className="lit-input"
-                  style={styles.input}
-                  name="quantity"
-                  type="number"
-                  min="1"
-                  value={form.quantity}
-                  onChange={handleChange}
-                  required
-                />
-              </div>
+              <div style={styles.formSectionTitle}>Thời gian thực tập</div>
 
               <div style={styles.fieldGroup}>
                 <label style={styles.label}>Ngày bắt đầu</label>
@@ -453,28 +444,60 @@ export default function LecturerIntershiptopic() {
                 />
               </div>
 
+              <div style={styles.fieldGroup}>
+                <label style={styles.label}>Số ngày / tuần</label>
+                <input
+                  className="lit-input"
+                  style={styles.input}
+                  name="workDaysPerWeek"
+                  type="number"
+                  min="1"
+                  max="7"
+                  value={form.workDaysPerWeek}
+                  onChange={handleChange}
+                  placeholder="Ví dụ: 3"
+                />
+              </div>
+
+              <div style={styles.fieldGroup}>
+                <label style={styles.label}>Số giờ / ngày</label>
+                <input
+                  className="lit-input"
+                  style={styles.input}
+                  name="workHoursPerDay"
+                  type="number"
+                  min="1"
+                  max="24"
+                  value={form.workHoursPerDay}
+                  onChange={handleChange}
+                  placeholder="Ví dụ: 8"
+                />
+              </div>
+
+              <div style={styles.formSectionTitle}>Nội dung biểu mẫu</div>
+
               <div style={{ ...styles.fieldGroup, gridColumn: "1 / -1" }}>
-                <label style={styles.label}>Mô tả đề tài</label>
+                <label style={styles.label}>Mô tả công việc</label>
                 <textarea
                   className="lit-textarea"
                   style={styles.textarea}
                   name="description"
                   value={form.description}
                   onChange={handleChange}
-                  placeholder="Mô tả chi tiết về đề tài..."
+                  placeholder="Mô tả nội dung thực tập, phạm vi công việc..."
                   required
                 />
               </div>
 
               <div style={{ ...styles.fieldGroup, gridColumn: "1 / -1" }}>
-                <label style={styles.label}>Yêu cầu đề tài</label>
+                <label style={styles.label}>Yêu cầu / kế hoạch dự kiến</label>
                 <textarea
                   className="lit-textarea"
                   style={styles.textarea}
                   name="requirement"
                   value={form.requirement}
                   onChange={handleChange}
-                  placeholder="Các yêu cầu kỹ năng, kiến thức cần có..."
+                  placeholder="Nhập yêu cầu, kỹ năng hoặc kế hoạch công việc dự kiến..."
                   required
                 />
               </div>
@@ -515,11 +538,9 @@ export default function LecturerIntershiptopic() {
               <thead>
                 <tr>
                   <th style={styles.th}>Tên đề tài</th>
-                  <th style={styles.th}>Bộ môn / Vị trí</th>
-                  <th style={{ ...styles.th, textAlign: "center" }}>
-                    Số lượng
-                  </th>
+                  <th style={styles.th}>Trung tâm tiếp nhận</th>
                   <th style={styles.th}>Thời gian</th>
+                  <th style={styles.th}>Điều kiện</th>
                   <th style={{ ...styles.th, textAlign: "center" }}>
                     Trạng thái
                   </th>
@@ -546,7 +567,7 @@ export default function LecturerIntershiptopic() {
                     </td>
                   </tr>
                 ) : (
-                  filteredTopics.map((topic, idx) => (
+                  filteredTopics.map((topic) => (
                     <tr
                       key={topic._id}
                       className="lit-row"
@@ -558,16 +579,17 @@ export default function LecturerIntershiptopic() {
                     >
                       <td style={styles.td}>
                         <div style={styles.topicName}>{topic.topicname}</div>
-                        <div style={styles.mutedText}>{topic.description}</div>
+                        <div style={styles.mutedText}>
+                          {topic.requirement || topic.description}
+                        </div>
                       </td>
                       <td style={styles.td}>
-                        <div style={styles.deptLabel}>{topic.department}</div>
-                        <div style={styles.positionBadge}>{topic.position}</div>
-                      </td>
-                      <td style={{ ...styles.td, textAlign: "center" }}>
-                        <span style={styles.quantityBadge}>
-                          {topic.quantity} SV
-                        </span>
+                        <div style={styles.deptLabel}>
+                          {center.name}
+                        </div>
+                        <div style={styles.mutedText}>
+                          Cán bộ: {topic.lecturer?.username || "Chưa rõ"}
+                        </div>
                       </td>
                       <td style={styles.td}>
                         <div style={styles.dateRow}>
@@ -575,14 +597,46 @@ export default function LecturerIntershiptopic() {
                             className="bi bi-calendar-event"
                             style={{ color: "#94a3b8", fontSize: 12 }}
                           ></i>
-                          {new Date(topic.startday).toLocaleDateString("vi-VN")}
+                          {formatDate(topic.startday)}
                         </div>
                         <div style={{ ...styles.dateRow, marginTop: 4 }}>
                           <i
                             className="bi bi-calendar-check"
                             style={{ color: "#94a3b8", fontSize: 12 }}
                           ></i>
-                          {new Date(topic.endday).toLocaleDateString("vi-VN")}
+                          {formatDate(topic.endday)}
+                        </div>
+                      </td>
+                      <td style={styles.td}>
+                        <div style={styles.conditionStack}>
+                          <span style={styles.conditionPill}>
+                            {topic.workDaysPerWeek
+                              ? `${topic.workDaysPerWeek} ngày/tuần`
+                              : "Chưa nhập ngày/tuần"}
+                          </span>
+                          <span style={styles.conditionPill}>
+                            {topic.workHoursPerDay
+                              ? `${topic.workHoursPerDay} giờ/ngày`
+                              : "Chưa nhập giờ/ngày"}
+                          </span>
+                          <span
+                            style={
+                              center.hasOffice
+                                ? styles.conditionOk
+                                : styles.conditionMuted
+                            }
+                          >
+                            Nơi làm việc
+                          </span>
+                          <span
+                            style={
+                              center.hasComputer
+                                ? styles.conditionOk
+                                : styles.conditionMuted
+                            }
+                          >
+                            Máy tính
+                          </span>
                         </div>
                       </td>
                       <td style={{ ...styles.td, textAlign: "center" }}>
@@ -649,10 +703,10 @@ export default function LecturerIntershiptopic() {
 
 const styles = {
   page: {
-    minHeight: "100vh",
-    padding: "28px 32px",
-    background: "linear-gradient(160deg, #f0f4ff 0%, #f8fafc 60%, #fff 100%)",
-    fontFamily: "'Inter', sans-serif",
+    minHeight: "70vh",
+    padding: 0,
+    background: "transparent",
+    fontFamily: "'Outfit', 'Inter', Arial, sans-serif",
   },
 
   loadingWrapper: {
@@ -662,6 +716,14 @@ const styles = {
     justifyContent: "center",
     minHeight: "60vh",
     gap: 16,
+  },
+  loadingSpinner: {
+    width: 44,
+    height: 44,
+    border: "4px solid #e0e7ff",
+    borderTopColor: "#3b82f6",
+    borderRadius: "50%",
+    animation: "spin 0.75s linear infinite",
   },
   loadingText: {
     color: "#64748b",
@@ -677,12 +739,13 @@ const styles = {
     alignItems: "flex-start",
     gap: 20,
     marginBottom: 24,
-    background:
-      "radial-gradient(circle at top left, rgba(96,165,250,0.2), transparent 45%), linear-gradient(135deg, #1f2937, #1e40af)",
-    borderRadius: 24,
-    padding: "32px 36px",
-    boxShadow: "0 18px 42px rgba(15,23,42,0.18)",
-    color: "#fff",
+    background: "#fff",
+    border: "1px solid #d7dee8",
+    borderLeft: "4px solid #f29111",
+    borderRadius: 8,
+    padding: "22px 24px",
+    boxShadow: "0 1px 2px rgba(15,23,42,0.06)",
+    color: "#334155",
   },
   topLeft: {
     display: "flex",
@@ -694,27 +757,26 @@ const styles = {
     display: "inline-flex",
     alignItems: "center",
     gap: 7,
-    background: "rgba(255,255,255,0.15)",
-    border: "1px solid rgba(255,255,255,0.25)",
+    background: "#f8fafc",
+    border: "1px solid #d7dee8",
     borderRadius: 999,
     padding: "4px 12px",
     fontSize: 12,
     fontWeight: 700,
-    color: "#bfdbfe",
+    color: "#083c73",
     width: "fit-content",
-    letterSpacing: "0.4px",
-    backdropFilter: "blur(4px)",
+    letterSpacing: 0,
   },
   title: {
-    fontSize: 32,
+    fontSize: 22,
     margin: 0,
-    color: "#fff",
+    color: "#083c73",
     fontWeight: 800,
-    letterSpacing: "-0.5px",
+    letterSpacing: 0,
   },
   subtitle: {
     margin: 0,
-    color: "rgba(255,255,255,0.65)",
+    color: "#64748b",
     fontSize: 14,
     fontWeight: 500,
   },
@@ -725,28 +787,27 @@ const styles = {
     alignItems: "center",
   },
   statCard: {
-    background: "rgba(255,255,255,0.16)",
-    border: "1px solid rgba(255,255,255,0.2)",
-    borderRadius: 16,
+    background: "#f8fafc",
+    border: "1px solid #d7dee8",
+    borderRadius: 8,
     padding: "14px 22px",
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
     gap: 2,
-    backdropFilter: "blur(6px)",
     minWidth: 90,
   },
   statNum: {
     fontSize: 28,
     fontWeight: 800,
-    color: "#fff",
+    color: "#083c73",
     lineHeight: 1,
   },
   statLabel: {
     fontSize: 11,
-    color: "rgba(255,255,255,0.65)",
+    color: "#64748b",
     fontWeight: 600,
-    letterSpacing: "0.4px",
+    letterSpacing: 0,
     textTransform: "uppercase",
   },
   createTopicBtn: {
@@ -754,13 +815,13 @@ const styles = {
     alignItems: "center",
     gap: 8,
     padding: "12px 18px",
-    borderRadius: 16,
+    borderRadius: 8,
     border: "none",
-    background: "linear-gradient(135deg, #2563eb, #3b82f6)",
+    background: "#083c73",
     color: "#fff",
     fontWeight: 700,
     cursor: "pointer",
-    boxShadow: "0 12px 28px rgba(37,99,235,0.2)",
+    boxShadow: "none",
     transition: "all 0.22s ease",
     whiteSpace: "nowrap",
   },
@@ -772,11 +833,11 @@ const styles = {
     alignItems: "center",
     background: "#fff",
     border: "1.5px solid #e2e8f0",
-    borderRadius: 16,
+    borderRadius: 8,
     padding: "0 20px",
     height: 52,
     marginBottom: 24,
-    boxShadow: "0 4px 16px rgba(15,23,42,0.05)",
+    boxShadow: "0 1px 2px rgba(15,23,42,0.06)",
     transition: "border-color 0.2s",
   },
   searchIcon: {
@@ -792,7 +853,7 @@ const styles = {
     color: "#0f172a",
     background: "transparent",
     fontWeight: 500,
-    fontFamily: "'Inter', sans-serif",
+    fontFamily: "'Outfit', 'Inter', Arial, sans-serif",
   },
   clearSearch: {
     color: "#94a3b8",
@@ -808,20 +869,20 @@ const styles = {
     alignItems: "flex-start",
     background: "#eff6ff",
     border: "1px solid #dbeafe",
-    borderRadius: 18,
+    borderRadius: 8,
     padding: "18px 22px",
     marginBottom: 24,
-    boxShadow: "0 10px 28px rgba(59,130,246,0.1)",
+    boxShadow: "0 1px 2px rgba(15,23,42,0.06)",
   },
   noticeIcon: {
     width: 46,
     minWidth: 46,
     height: 46,
-    borderRadius: 14,
+    borderRadius: 8,
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    background: "linear-gradient(135deg, #bfdbfe, #93c5fd)",
+    background: "#dbeafe",
     color: "#1d4ed8",
     fontSize: 18,
   },
@@ -842,9 +903,9 @@ const styles = {
   formCard: {
     marginBottom: 24,
     background: "#fff",
-    borderRadius: 24,
-    boxShadow: "0 16px 48px rgba(37,99,235,0.12)",
-    border: "1.5px solid #bfdbfe",
+    borderRadius: 8,
+    boxShadow: "0 1px 2px rgba(15,23,42,0.06)",
+    border: "1px solid #d7dee8",
     overflow: "hidden",
   },
   formHeader: {
@@ -852,8 +913,8 @@ const styles = {
     justifyContent: "space-between",
     alignItems: "center",
     padding: "20px 28px",
-    background: "linear-gradient(135deg, #eff6ff, #dbeafe)",
-    borderBottom: "1px solid #bfdbfe",
+    background: "#f8fafc",
+    borderBottom: "1px solid #e5eaf1",
   },
   formTitleGroup: {
     display: "flex",
@@ -865,7 +926,7 @@ const styles = {
     height: 40,
     background: "#dbeafe",
     border: "1.5px solid #bfdbfe",
-    borderRadius: 12,
+    borderRadius: 8,
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
@@ -907,18 +968,63 @@ const styles = {
     flexDirection: "column",
     gap: 8,
   },
+  checkboxGroup: {
+    gridColumn: "1 / -1",
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+    gap: 12,
+  },
+  checkboxCard: {
+    display: "flex",
+    alignItems: "center",
+    gap: 12,
+    border: "1px solid #d7dee8",
+    borderRadius: 8,
+    padding: "12px 14px",
+    background: "#ffffff",
+    cursor: "pointer",
+  },
+  checkboxInput: {
+    width: 18,
+    height: 18,
+    accentColor: "#083c73",
+  },
+  checkboxText: {
+    display: "flex",
+    flexDirection: "column",
+    gap: 2,
+  },
+  checkboxTitle: {
+    color: "#0f172a",
+    fontSize: 13,
+  },
+  checkboxHint: {
+    color: "#64748b",
+    fontSize: 12,
+  },
+  formSectionTitle: {
+    gridColumn: "1 / -1",
+    color: "#083c73",
+    fontSize: 13,
+    fontWeight: 800,
+    textTransform: "uppercase",
+    letterSpacing: 0,
+    borderTop: "1px solid #e2e8f0",
+    paddingTop: 18,
+    marginTop: 4,
+  },
   label: {
     fontSize: 12,
     fontWeight: 700,
     color: "#475569",
     textTransform: "uppercase",
-    letterSpacing: "0.5px",
+    letterSpacing: 0,
   },
   input: {
     width: "100%",
     padding: "12px 16px",
     border: "1.5px solid #e2e8f0",
-    borderRadius: 12,
+    borderRadius: 8,
     outline: "none",
     fontSize: 14,
     color: "#0f172a",
@@ -926,14 +1032,14 @@ const styles = {
     transition: "all 0.2s ease",
     fontWeight: 500,
     boxSizing: "border-box",
-    fontFamily: "'Inter', sans-serif",
+    fontFamily: "'Outfit', 'Inter', Arial, sans-serif",
   },
   textarea: {
     width: "100%",
     minHeight: 100,
     padding: "12px 16px",
     border: "1.5px solid #e2e8f0",
-    borderRadius: 12,
+    borderRadius: 8,
     outline: "none",
     fontSize: 14,
     color: "#0f172a",
@@ -942,7 +1048,7 @@ const styles = {
     transition: "all 0.2s ease",
     fontWeight: 500,
     boxSizing: "border-box",
-    fontFamily: "'Inter', sans-serif",
+    fontFamily: "'Outfit', 'Inter', Arial, sans-serif",
   },
   buttonGroup: {
     gridColumn: "1 / -1",
@@ -957,16 +1063,16 @@ const styles = {
     justifyContent: "center",
     gap: 8,
     padding: "13px 20px",
-    borderRadius: 12,
+    borderRadius: 8,
     border: "none",
-    background: "linear-gradient(135deg, #2563eb, #1d4ed8)",
+    background: "#083c73",
     color: "#fff",
     fontWeight: 700,
     fontSize: 14,
     cursor: "pointer",
-    boxShadow: "0 8px 20px rgba(37,99,235,0.3)",
+    boxShadow: "none",
     transition: "0.25s ease",
-    fontFamily: "'Inter', sans-serif",
+    fontFamily: "'Outfit', 'Inter', Arial, sans-serif",
   },
   cancelBtn: {
     flex: 1,
@@ -975,7 +1081,7 @@ const styles = {
     justifyContent: "center",
     gap: 8,
     padding: "13px 20px",
-    borderRadius: 12,
+    borderRadius: 8,
     border: "1.5px solid #e2e8f0",
     background: "#fff",
     color: "#64748b",
@@ -983,16 +1089,18 @@ const styles = {
     fontSize: 14,
     cursor: "pointer",
     transition: "0.25s ease",
-    fontFamily: "'Inter', sans-serif",
+    fontFamily: "'Outfit', 'Inter', Arial, sans-serif",
   },
 
   // TABLE
   tableCard: {
     background: "#fff",
-    borderRadius: 24,
-    boxShadow: "0 8px 32px rgba(15,23,42,0.07)",
-    border: "1px solid #e2e8f0",
+    borderRadius: 8,
+    boxShadow: "0 1px 2px rgba(15,23,42,0.06)",
+    border: "1px solid #d7dee8",
     overflow: "hidden",
+    maxWidth: "100%",
+    minWidth: 0,
   },
   tableHeader: {
     padding: "20px 28px",
@@ -1005,17 +1113,18 @@ const styles = {
     color: "#0f172a",
   },
   resultCount: {
-    color: "#3b82f6",
+    color: "#64748b",
     fontWeight: 600,
     fontSize: 14,
   },
   tableWrapper: {
     overflowX: "auto",
+    maxWidth: "100%",
   },
   table: {
     width: "100%",
     borderCollapse: "collapse",
-    minWidth: 900,
+    minWidth: 980,
   },
   tableRow: {
     transition: "background 0.15s",
@@ -1026,7 +1135,7 @@ const styles = {
     fontSize: 11,
     fontWeight: 700,
     textTransform: "uppercase",
-    letterSpacing: "0.06em",
+    letterSpacing: 0,
     borderBottom: "1px solid #f1f5f9",
     background: "#f8fafc",
     whiteSpace: "nowrap",
@@ -1092,6 +1201,45 @@ const styles = {
     fontSize: 12,
     fontWeight: 500,
   },
+  conditionStack: {
+    display: "flex",
+    flexWrap: "wrap",
+    gap: 6,
+    maxWidth: 240,
+  },
+  conditionPill: {
+    display: "inline-flex",
+    alignItems: "center",
+    border: "1px solid #d7dee8",
+    borderRadius: 999,
+    background: "#f8fafc",
+    color: "#475569",
+    fontSize: 11,
+    fontWeight: 700,
+    padding: "4px 9px",
+  },
+  conditionOk: {
+    display: "inline-flex",
+    alignItems: "center",
+    border: "1px solid #bbf7d0",
+    borderRadius: 999,
+    background: "#dcfce7",
+    color: "#166534",
+    fontSize: 11,
+    fontWeight: 700,
+    padding: "4px 9px",
+  },
+  conditionMuted: {
+    display: "inline-flex",
+    alignItems: "center",
+    border: "1px solid #e2e8f0",
+    borderRadius: 999,
+    background: "#f8fafc",
+    color: "#94a3b8",
+    fontSize: 11,
+    fontWeight: 700,
+    padding: "4px 9px",
+  },
   emptyCell: {
     padding: 0,
     background: "#fff",
@@ -1116,6 +1264,7 @@ const styles = {
   },
   actionGroup: {
     display: "flex",
+    flexWrap: "wrap",
     gap: 8,
     justifyContent: "center",
     alignItems: "center",
@@ -1125,45 +1274,45 @@ const styles = {
     alignItems: "center",
     gap: 5,
     padding: "8px 14px",
-    borderRadius: 10,
+    borderRadius: 8,
     border: "none",
-    background: "linear-gradient(135deg, #60a5fa, #3b82f6)",
+    background: "#2563eb",
     color: "#fff",
     fontWeight: 700,
     fontSize: 12,
     cursor: "pointer",
-    boxShadow: "0 4px 12px rgba(59,130,246,0.2)",
+    boxShadow: "none",
     transition: "all 0.22s ease",
-    fontFamily: "'Inter', sans-serif",
+    fontFamily: "'Outfit', 'Inter', Arial, sans-serif",
   },
   deleteBtn: {
     display: "inline-flex",
     alignItems: "center",
     gap: 5,
     padding: "8px 14px",
-    borderRadius: 10,
+    borderRadius: 8,
     border: "none",
-    background: "linear-gradient(135deg, #f87171, #ef4444)",
+    background: "#b91c1c",
     color: "#fff",
     fontWeight: 700,
     fontSize: 12,
     cursor: "pointer",
-    boxShadow: "0 4px 12px rgba(239,68,68,0.2)",
+    boxShadow: "none",
     transition: "all 0.22s ease",
-    fontFamily: "'Inter', sans-serif",
+    fontFamily: "'Outfit', 'Inter', Arial, sans-serif",
   },
   statusBtn: {
     display: "inline-flex",
     alignItems: "center",
     gap: 5,
     padding: "8px 14px",
-    borderRadius: 10,
+    borderRadius: 8,
     border: "none",
     color: "#fff",
     fontWeight: 700,
     fontSize: 12,
     cursor: "pointer",
     transition: "all 0.22s ease",
-    fontFamily: "'Inter', sans-serif",
+    fontFamily: "'Outfit', 'Inter', Arial, sans-serif",
   },
 };

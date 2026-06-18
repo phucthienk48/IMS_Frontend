@@ -1,7 +1,29 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import DocumentExportModal from "../../components/DocumentExportModal";
+import { fetchProgressData } from "../../utils/progressData";
+import {
+  buildAssignmentRows,
+  createEmptyAssignmentRows,
+  saveWeeklyAssignments,
+} from "../../utils/weeklyAssignments";
 
 const API = "http://localhost:5000";
+
+const formatDateVN = (value) => {
+  if (!value) return "";
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? "" : date.toLocaleDateString("vi-VN");
+};
+
+const reportDateRange = (report) => {
+  const from = formatDateVN(report?.fromDate);
+  const to = formatDateVN(report?.toDate);
+  if (from && to) return `${from} - ${to}`;
+  if (from) return `Từ ${from}`;
+  if (to) return `Đến ${to}`;
+  return "Chưa nhập thời gian";
+};
 
 export default function AdminStudent() {
   const navigate = useNavigate();
@@ -18,15 +40,21 @@ export default function AdminStudent() {
   });
   const [saving, setSaving] = useState(false);
 
-  // ── Nhật ký thực tập ──
+  // ── Báo cáo tiến độ ──
   const [viewReportApp, setViewReportApp] = useState(null);
   const [weeklyReports, setWeeklyReports] = useState([]);
+  const [assignmentForm, setAssignmentForm] = useState(createEmptyAssignmentRows);
+  const [assignmentSaving, setAssignmentSaving] = useState(false);
   const [weeklyLoading, setWeeklyLoading] = useState(false);
   const [feedbackForm, setFeedbackForm] = useState({});
   const [feedbackSaving, setFeedbackSaving] = useState({});
   const [assignTopicForm, setAssignTopicForm] = useState({});
   const [assigningTopic, setAssigningTopic] = useState({});
   const [viewingDetailApp, setViewingDetailApp] = useState(null);
+  const [documentApp, setDocumentApp] = useState(null);
+  const [documentReports, setDocumentReports] = useState([]);
+  const [documentAssignments, setDocumentAssignments] = useState([]);
+  const [documentLoading, setDocumentLoading] = useState(false);
 
   const openDetailModal = (app) => {
     setViewingDetailApp(app);
@@ -196,34 +224,51 @@ export default function AdminStudent() {
     }
   };
 
-  // ── Nhật ký thực tập ──
+  // ── Báo cáo tiến độ ──
   const openReportView = async (app) => {
     setViewReportApp(app);
     setWeeklyLoading(true);
     try {
       const applicationId = app?._id || app?.id;
       if (!applicationId) {
-        throw new Error("Không tìm thấy mã hồ sơ để tải nhật ký.");
+        throw new Error("Không tìm thấy mã hồ sơ để tải báo cáo tiến độ.");
       }
 
-      const res = await fetch(`${API}/api/weekly-reports/application/${applicationId}`);
-      if (!res.ok) {
-        const errorPayload = await res.json().catch(() => ({}));
-        throw new Error(errorPayload.message || "Không thể tải nhật ký thực tập.");
-      }
-      const data = await res.json();
-      const rpts = data.data || [];
+      const { reports: rpts, assignments } = await fetchProgressData(applicationId);
       setWeeklyReports(rpts);
+      setAssignmentForm(buildAssignmentRows(assignments));
       const init = {};
       rpts.forEach((r) => { init[r._id] = { feedback: r.feedback || "", status: r.status }; });
       setFeedbackForm(init);
     } catch (err) {
-      console.error("Lỗi tải nhật ký (admin):", err);
+      console.error("Lỗi tải báo cáo tiến độ (admin):", err);
       setWeeklyReports([]);
+      setAssignmentForm(createEmptyAssignmentRows());
       setFeedbackForm({});
-      alert(err.message || "Không thể tải nhật ký thực tập");
+      alert(err.message || "Không thể tải báo cáo tiến độ");
     } finally {
       setWeeklyLoading(false);
+    }
+  };
+
+  const openDocumentView = async (app) => {
+    setDocumentApp(app);
+    setDocumentLoading(true);
+    try {
+      const applicationId = app?._id || app?.id;
+      if (!applicationId) {
+        throw new Error("Không tìm thấy mã hồ sơ để tải biểu mẫu.");
+      }
+
+      const { reports: rpts, assignments } = await fetchProgressData(applicationId);
+      setDocumentReports(rpts);
+      setDocumentAssignments(assignments);
+    } catch (err) {
+      setDocumentReports([]);
+      setDocumentAssignments([]);
+      alert(err.message || "Không thể tải dữ liệu biểu mẫu.");
+    } finally {
+      setDocumentLoading(false);
     }
   };
 
@@ -243,10 +288,35 @@ export default function AdminStudent() {
       } else {
         alert(data.message || "Lưu thất bại");
       }
-    } catch (err) {
+    } catch {
       alert("Lỗi kết nối server");
     } finally {
       setFeedbackSaving((prev) => ({ ...prev, [reportId]: false }));
+    }
+  };
+
+  const handleAssignmentChange = (week, field, value) => {
+    setAssignmentForm((prev) =>
+      prev.map((row) => (row.week === week ? { ...row, [field]: value } : row)),
+    );
+  };
+
+  const handleSaveAssignments = async () => {
+    const applicationId = viewReportApp?._id || viewReportApp?.id;
+    if (!applicationId) {
+      alert("Không tìm thấy mã hồ sơ để lưu kế hoạch giao việc.");
+      return;
+    }
+
+    setAssignmentSaving(true);
+    try {
+      const saved = await saveWeeklyAssignments(applicationId, assignmentForm);
+      setAssignmentForm(buildAssignmentRows(saved));
+      alert("Đã lưu kế hoạch giao việc theo tuần.");
+    } catch (err) {
+      alert(err.message || "Không thể lưu kế hoạch giao việc.");
+    } finally {
+      setAssignmentSaving(false);
     }
   };
 
@@ -283,7 +353,7 @@ export default function AdminStudent() {
   };
 
   if (loading)
-    return <p style={{ padding: 20 }}>⏳ Đang tải danh sách sinh viên thực tập...</p>;
+    return <p style={{ padding: 20 }}>Đang tải danh sách sinh viên thực tập...</p>;
 
   return (
     <div style={styles.container}>
@@ -459,7 +529,7 @@ export default function AdminStudent() {
                       ) : (
                         // If has topic, show actions
                         <>
-                          <div style={{ display: "flex", gap: 8 }}>
+                          <div style={styles.rowActions}>
                             <button
                               style={styles.evaluateBtn}
                               onClick={() => openEvaluationModal(app)}
@@ -472,9 +542,16 @@ export default function AdminStudent() {
                             <button
                               style={styles.viewReportBtn}
                               onClick={() => openReportView(app)}
-                              title="Xem và nhận xét nhật ký tuần"
+                              title="Xem và nhận xét báo cáo tiến độ"
                             >
-                              <i className="bi bi-journal-text me-1"></i> Nhật ký
+                              <i className="bi bi-clipboard-data me-1"></i> Báo cáo
+                            </button>
+                            <button
+                              style={styles.documentBtn}
+                              onClick={() => openDocumentView(app)}
+                              title="Xuất biểu mẫu Word"
+                            >
+                              <i className="bi bi-file-earmark-word-fill me-1"></i> Biểu mẫu
                             </button>
                           </div>
                           <button
@@ -737,16 +814,26 @@ export default function AdminStudent() {
         </div>
       )}
 
+      {documentApp && (
+        <DocumentExportModal
+          application={documentApp}
+          weeklyAssignments={documentAssignments}
+          weeklyReports={documentReports}
+          loading={documentLoading}
+          onClose={() => setDocumentApp(null)}
+        />
+      )}
+
       {viewReportApp && (
         <div style={styles.modalOverlay} onClick={() => setViewReportApp(null)}>
           <div
-            style={{ ...styles.modalBox, maxWidth: 680, maxHeight: "88vh", display: "flex", flexDirection: "column", overflowY: "auto" }}
+            style={{ ...styles.modalBox, maxWidth: 980, maxHeight: "88vh", display: "flex", flexDirection: "column", overflowY: "auto" }}
             onClick={(e) => e.stopPropagation()}
           >
             <div style={styles.modalHeader}>
               <div>
                 <h4 style={{ margin: 0, color: "#1e3a8a", display: "flex", alignItems: "center", gap: 8 }}>
-                  <i className="bi bi-journal-text"></i> NHẬT KÝ THỰC TẬP HÀNG TUẦN
+                  <i className="bi bi-clipboard-data"></i> BÁO CÁO TIẾN ĐỘ HÀNG TUẦN
                 </h4>
                 <p style={{ margin: "4px 0 0", fontSize: 12, color: "#64748b" }}>
                   Sinh viên: <strong>{viewReportApp.fullName}</strong> &mdash; {viewReportApp.topic?.topicname || "Hồ sơ tự do"}
@@ -756,12 +843,72 @@ export default function AdminStudent() {
             </div>
 
             <div style={{ padding: "20px 24px", overflowY: "auto" }}>
+              <div style={styles.assignmentBox}>
+                <div style={styles.assignmentHeader}>
+                  <h5 style={styles.assignmentTitle}>
+                    <i className="bi bi-calendar2-week"></i> Kế hoạch giao việc theo tuần
+                  </h5>
+                  <button
+                    style={styles.assignmentSaveBtn}
+                    onClick={handleSaveAssignments}
+                    disabled={assignmentSaving || weeklyLoading}
+                  >
+                    <i className="bi bi-save-fill"></i>
+                    {assignmentSaving ? "Đang lưu..." : "Lưu kế hoạch"}
+                  </button>
+                </div>
+
+                <div style={styles.assignmentTable}>
+                  <div style={styles.assignmentHeaderRow}>
+                    <div style={styles.assignmentTableHead}>Tuần</div>
+                    <div style={styles.assignmentTableHead}>Từ ngày</div>
+                    <div style={styles.assignmentTableHead}>Đến ngày</div>
+                    <div style={styles.assignmentTableHead}>Nội dung giao việc</div>
+                    <div style={styles.assignmentTableHead}>Buổi/giờ</div>
+                  </div>
+
+                  {assignmentForm.map((row) => (
+                    <div style={styles.assignmentRow} key={row.week}>
+                      <div style={styles.assignmentWeek}>Tuần {row.week}</div>
+                      <input
+                        type="date"
+                        style={styles.assignmentInput}
+                        value={row.fromDate}
+                        onChange={(e) => handleAssignmentChange(row.week, "fromDate", e.target.value)}
+                      />
+                      <input
+                        type="date"
+                        style={styles.assignmentInput}
+                        value={row.toDate}
+                        onChange={(e) => handleAssignmentChange(row.week, "toDate", e.target.value)}
+                      />
+                      <textarea
+                        style={styles.assignmentTextarea}
+                        value={row.content}
+                        placeholder="Nhập công việc giao cho sinh viên"
+                        onChange={(e) => handleAssignmentChange(row.week, "content", e.target.value)}
+                      />
+                      <input
+                        style={styles.assignmentInput}
+                        value={row.hoursOrSessions}
+                        placeholder="VD: 6 buổi"
+                        onChange={(e) => handleAssignmentChange(row.week, "hoursOrSessions", e.target.value)}
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <h5 style={styles.progressSectionTitle}>
+                <i className="bi bi-list-check"></i> Báo cáo tiến độ đã nộp
+              </h5>
+
               {weeklyLoading ? (
-                <p style={{ color: "#64748b", textAlign: "center", padding: 30 }}>⏳ Đang tải nhật ký...</p>
+                <p style={{ color: "#64748b", textAlign: "center", padding: 30 }}>Đang tải báo cáo tiến độ...</p>
               ) : weeklyReports.length === 0 ? (
                 <div style={{ textAlign: "center", color: "#94a3b8", padding: "30px 0", fontStyle: "italic" }}>
                   <i className="bi bi-inbox" style={{ fontSize: 32, display: "block", marginBottom: 8 }}></i>
-                  Sinh viên chưa nộp nhật ký nào.
+                  Sinh viên chưa nộp báo cáo tiến độ nào.
                 </div>
               ) : (
                 <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
@@ -782,10 +929,18 @@ export default function AdminStudent() {
                             {new Date(report.createdAt).toLocaleDateString("vi-VN")}
                           </span>
                         </div>
+                        <div style={styles.reportMetaRow}>
+                          <span>
+                            <i className="bi bi-calendar-week"></i> {reportDateRange(report)}
+                          </span>
+                          <span>
+                            <i className="bi bi-clock-history"></i> {report.hoursOrSessions || "Chưa nhập số buổi/giờ"}
+                          </span>
+                        </div>
 
                         <div style={{ marginBottom: 14 }}>
                           <p style={{ fontSize: 12, fontWeight: 700, color: "#475569", marginBottom: 4 }}>
-                            <i className="bi bi-person-fill me-1"></i> Nội dung sinh viên:
+                            <i className="bi bi-clipboard2-check-fill me-1"></i> Nội dung báo cáo:
                           </p>
                           <p style={{ fontSize: 13, color: "#334155", whiteSpace: "pre-wrap", lineHeight: 1.6, margin: 0, padding: "10px 12px", background: "#f8fafc", borderRadius: 8, border: "1px solid #e2e8f0" }}>
                             {report.content}
@@ -899,7 +1054,9 @@ const styles = {
   feedbackContainer: { maxWidth: "240px" },
   feedbackText: { margin: 0, fontSize: "12px", color: "#475569", lineHeight: "1.5", display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden", textOverflow: "ellipsis" },
   noFeedback: { color: "#94a3b8", fontStyle: "italic", fontSize: "12px" },
+  rowActions: { display: "flex", flexWrap: "wrap", gap: 6, justifyContent: "center", minWidth: 180 },
   evaluateBtn: { padding: "8px 14px", borderRadius: "10px", border: "none", background: "#2563eb", color: "#ffffff", fontSize: "12px", fontWeight: "600", cursor: "pointer", boxShadow: "0 2px 4px rgba(37,99,235,0.15)", transition: "all 0.2s", display: "inline-flex", alignItems: "center", gap: 4 },
+  documentBtn: { padding: "7px 12px", borderRadius: "8px", background: "#eff6ff", color: "#1d4ed8", fontSize: "12px", fontWeight: "600", cursor: "pointer", border: "1px solid #bfdbfe", display: "inline-flex", alignItems: "center", gap: 4 },
 
   modalOverlay: { position: "fixed", inset: 0, background: "rgba(15,23,42,0.3)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 2000 },
   modalBox: { width: "100%", maxWidth: "500px", background: "#ffffff", borderRadius: "20px", boxShadow: "0 20px 50px rgba(15,23,42,0.15)", overflow: "hidden", animation: "modalFadeIn 0.3s ease-out" },
@@ -914,12 +1071,27 @@ const styles = {
   modalFooter: { display: "flex", justifyContent: "flex-end", gap: "12px", padding: "18px 24px", background: "#f8fafc", borderTop: "1px solid #e2e8f0" },
   modalCancelBtn: { padding: "10px 18px", borderRadius: "10px", border: "1px solid #cbd5e1", background: "#ffffff", color: "#475569", fontSize: "13px", fontWeight: "600", cursor: "pointer" },
   modalSaveBtn: { padding: "10px 20px", borderRadius: "10px", border: "none", background: "#16a34a", color: "#ffffff", fontSize: "13px", fontWeight: "600", cursor: "pointer", boxShadow: "0 2px 4px rgba(22,163,74,0.15)" },
-  viewReportBtn: { padding: "7px 12px", borderRadius: "8px", border: "none", background: "#f0fdf4", color: "#15803d", fontSize: "12px", fontWeight: "600", cursor: "pointer", border: "1px solid #bbf7d0", display: "inline-flex", alignItems: "center", gap: 4 },
+  viewReportBtn: { padding: "7px 12px", borderRadius: "8px", background: "#f0fdf4", color: "#15803d", fontSize: "12px", fontWeight: "600", cursor: "pointer", border: "1px solid #bbf7d0", display: "inline-flex", alignItems: "center", gap: 4 },
   assignTopicBtn: { padding: "8px 12px", borderRadius: "8px", border: "none", background: "#2563eb", color: "#fff", fontSize: "12px", fontWeight: "600", cursor: "pointer", boxShadow: "0 2px 6px rgba(37,99,235,0.25)" },
   untopicHeader: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 16px", background: "#f8fafc", borderBottom: "1px solid #e2e8f0" },
   untopicCount: { background: "#e2e8f0", color: "#475569", padding: "6px 10px", borderRadius: "999px", fontSize: 12, fontWeight: 700 },
+  assignmentBox: { background: "#ffffff", border: "1px solid #d7dee8", borderRadius: 8, padding: "14px 16px", marginBottom: 16 },
+  assignmentHeader: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap", marginBottom: 12 },
+  assignmentTitle: { margin: 0, display: "flex", alignItems: "center", gap: 8, color: "#083c73", fontSize: 14, fontWeight: 800 },
+  assignmentSaveBtn: { display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "8px 12px", borderRadius: 8, border: "1px solid #bbf7d0", background: "#f0fdf4", color: "#166534", cursor: "pointer", fontSize: 12, fontWeight: 800 },
+  assignmentTable: { display: "flex", flexDirection: "column", gap: 8, overflowX: "auto" },
+  assignmentHeaderRow: { display: "grid", gridTemplateColumns: "72px 130px 130px minmax(260px, 1fr) 120px", gap: 8, minWidth: 760, alignItems: "center" },
+  assignmentTableHead: { color: "#475569", fontSize: 11, fontWeight: 800, textTransform: "uppercase" },
+  assignmentRow: { display: "grid", gridTemplateColumns: "72px 130px 130px minmax(260px, 1fr) 120px", gap: 8, minWidth: 760, alignItems: "stretch" },
+  assignmentWeek: { display: "flex", alignItems: "center", color: "#083c73", fontSize: 12, fontWeight: 800 },
+  assignmentInput: { width: "100%", minHeight: 36, padding: "8px 10px", borderRadius: 8, border: "1px solid #cbd5e1", fontSize: 12, color: "#1e293b", boxSizing: "border-box" },
+  assignmentTextarea: { width: "100%", minHeight: 38, padding: "8px 10px", borderRadius: 8, border: "1px solid #cbd5e1", fontSize: 12, color: "#1e293b", resize: "vertical", boxSizing: "border-box" },
+  progressSectionTitle: { margin: "2px 0 12px", display: "flex", alignItems: "center", gap: 8, color: "#083c73", fontSize: 14, fontWeight: 800 },
   reportViewCard: { background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, padding: "16px 18px", boxShadow: "0 2px 8px rgba(0,0,0,0.04)" },
+  reportExportRow: { display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 16 },
+  reportExportBtn: { display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "8px 12px", borderRadius: 8, border: "1px solid", fontSize: 12, fontWeight: 700, cursor: "pointer", background: "#fff" },
   reportViewHeader: { display: "flex", alignItems: "center", gap: 10, marginBottom: 12, flexWrap: "wrap" },
+  reportMetaRow: { display: "flex", gap: 12, flexWrap: "wrap", color: "#64748b", fontSize: 12, fontWeight: 600, marginBottom: 12 },
   weekLabel: { background: "linear-gradient(135deg, #2563eb, #1d4ed8)", color: "#fff", fontWeight: 700, fontSize: 12, padding: "3px 12px", borderRadius: 999 },
   reportStatusPill: { fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 999 },
 };

@@ -1,7 +1,29 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import DocumentExportModal from "../../components/DocumentExportModal";
+import { fetchProgressData } from "../../utils/progressData";
+import {
+  buildAssignmentRows,
+  createEmptyAssignmentRows,
+  saveWeeklyAssignments,
+} from "../../utils/weeklyAssignments";
 
 const API = "http://localhost:5000";
+
+const formatDateVN = (value) => {
+  if (!value) return "";
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? "" : date.toLocaleDateString("vi-VN");
+};
+
+const reportDateRange = (report) => {
+  const from = formatDateVN(report?.fromDate);
+  const to = formatDateVN(report?.toDate);
+  if (from && to) return `${from} - ${to}`;
+  if (from) return `Từ ${from}`;
+  if (to) return `Đến ${to}`;
+  return "Chưa nhập thời gian";
+};
 
 export default function LecturerStudent() {
   const navigate = useNavigate();
@@ -18,14 +40,20 @@ export default function LecturerStudent() {
   });
   const [saving, setSaving] = useState(false);
 
-  // ── Nhật ký thực tập ──
+  // ── Báo cáo tiến độ ──
   const [viewReportApp, setViewReportApp] = useState(null);
   const [weeklyReports, setWeeklyReports] = useState([]);
+  const [assignmentForm, setAssignmentForm] = useState(createEmptyAssignmentRows);
+  const [assignmentSaving, setAssignmentSaving] = useState(false);
   const [weeklyLoading, setWeeklyLoading] = useState(false);
   const [feedbackForm, setFeedbackForm] = useState({}); // { [reportId]: { feedback, status } }
   const [feedbackSaving, setFeedbackSaving] = useState({});
   const [assignTopicForm, setAssignTopicForm] = useState({});
   const [assigningTopic, setAssigningTopic] = useState({});
+  const [documentApp, setDocumentApp] = useState(null);
+  const [documentReports, setDocumentReports] = useState([]);
+  const [documentAssignments, setDocumentAssignments] = useState([]);
+  const [documentLoading, setDocumentLoading] = useState(false);
 
   const user = JSON.parse(localStorage.getItem("user")) || {};
   const currentLecturerId = user._id || user.id;
@@ -200,35 +228,52 @@ export default function LecturerStudent() {
     }
   };
 
-  // ── Nhật ký thực tập ──
+  // ── Báo cáo tiến độ ──
   const openReportView = async (app) => {
     setViewReportApp(app);
     setWeeklyLoading(true);
     try {
       const applicationId = app?._id || app?.id;
       if (!applicationId) {
-        throw new Error("Không tìm thấy mã hồ sơ để tải nhật ký.");
+        throw new Error("Không tìm thấy mã hồ sơ để tải báo cáo tiến độ.");
       }
 
-      const res = await fetch(`${API}/api/weekly-reports/application/${applicationId}`);
-      if (!res.ok) {
-        const errorPayload = await res.json().catch(() => ({}));
-        throw new Error(errorPayload.message || "Không thể tải nhật ký thực tập.");
-      }
-      const data = await res.json();
-      const rpts = data.data || [];
+      const { reports: rpts, assignments } = await fetchProgressData(applicationId);
       setWeeklyReports(rpts);
+      setAssignmentForm(buildAssignmentRows(assignments));
       // Khởi tạo form feedback để rỗng cho từng báo cáo
       const init = {};
       rpts.forEach((r) => { init[r._id] = { feedback: r.feedback || "", status: r.status }; });
       setFeedbackForm(init);
     } catch (err) {
-      console.error("Lỗi tải nhật ký:", err);
+      console.error("Lỗi tải báo cáo tiến độ:", err);
       setWeeklyReports([]);
+      setAssignmentForm(createEmptyAssignmentRows());
       setFeedbackForm({});
-      alert(err.message || "Không thể tải nhật ký thực tập");
+      alert(err.message || "Không thể tải báo cáo tiến độ");
     } finally {
       setWeeklyLoading(false);
+    }
+  };
+
+  const openDocumentView = async (app) => {
+    setDocumentApp(app);
+    setDocumentLoading(true);
+    try {
+      const applicationId = app?._id || app?.id;
+      if (!applicationId) {
+        throw new Error("Không tìm thấy mã hồ sơ để tải biểu mẫu.");
+      }
+
+      const { reports: rpts, assignments } = await fetchProgressData(applicationId);
+      setDocumentReports(rpts);
+      setDocumentAssignments(assignments);
+    } catch (err) {
+      setDocumentReports([]);
+      setDocumentAssignments([]);
+      alert(err.message || "Không thể tải dữ liệu biểu mẫu.");
+    } finally {
+      setDocumentLoading(false);
     }
   };
 
@@ -248,10 +293,35 @@ export default function LecturerStudent() {
       } else {
         alert(data.message || "Lưu thất bại");
       }
-    } catch (err) {
+    } catch {
       alert("Lỗi kết nối server");
     } finally {
       setFeedbackSaving((prev) => ({ ...prev, [reportId]: false }));
+    }
+  };
+
+  const handleAssignmentChange = (week, field, value) => {
+    setAssignmentForm((prev) =>
+      prev.map((row) => (row.week === week ? { ...row, [field]: value } : row)),
+    );
+  };
+
+  const handleSaveAssignments = async () => {
+    const applicationId = viewReportApp?._id || viewReportApp?.id;
+    if (!applicationId) {
+      alert("Không tìm thấy mã hồ sơ để lưu kế hoạch giao việc.");
+      return;
+    }
+
+    setAssignmentSaving(true);
+    try {
+      const saved = await saveWeeklyAssignments(applicationId, assignmentForm);
+      setAssignmentForm(buildAssignmentRows(saved));
+      alert("Đã lưu kế hoạch giao việc theo tuần.");
+    } catch (err) {
+      alert(err.message || "Không thể lưu kế hoạch giao việc.");
+    } finally {
+      setAssignmentSaving(false);
     }
   };
 
@@ -287,7 +357,7 @@ export default function LecturerStudent() {
   };
 
   if (loading)
-    return <p style={{ padding: 20 }}>⏳ Đang tải danh sách sinh viên thực tập...</p>;
+    return <p style={{ padding: 20 }}>Đang tải danh sách sinh viên thực tập...</p>;
 
   return (
     <div style={styles.container}>
@@ -438,7 +508,7 @@ export default function LecturerStudent() {
                     </div>
                   </td>
                   <td style={styles.tdCenter}>
-                    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                    <div style={styles.rowActions}>
                       <button
                         style={styles.evaluateBtn}
                         onClick={() => openEvaluationModal(app)}
@@ -449,9 +519,16 @@ export default function LecturerStudent() {
                       <button
                         style={styles.viewReportBtn}
                         onClick={() => openReportView(app)}
-                        title="Xem và nhận xét nhật ký tuần"
+                        title="Xem và nhận xét báo cáo tiến độ"
                       >
-                        <i className="bi bi-journal-text me-1"></i> Nhật ký
+                        <i className="bi bi-clipboard-data me-1"></i> Giao việc
+                      </button>
+                      <button
+                        style={styles.documentBtn}
+                        onClick={() => openDocumentView(app)}
+                        title="Xuất biểu mẫu Word"
+                      >
+                        <i className="bi bi-file-earmark-word-fill me-1"></i> Biểu mẫu
                       </button>
                     </div>
                   </td>
@@ -663,17 +740,27 @@ export default function LecturerStudent() {
         </div>
       )}
 
-      {/* Modal Nhật ký tuần - Giảng viên xem và nhận xét */}
+      {documentApp && (
+        <DocumentExportModal
+          application={documentApp}
+          weeklyAssignments={documentAssignments}
+          weeklyReports={documentReports}
+          loading={documentLoading}
+          onClose={() => setDocumentApp(null)}
+        />
+      )}
+
+      {/* Modal Báo cáo tiến độ - Giảng viên xem và nhận xét */}
       {viewReportApp && (
         <div style={styles.modalOverlay} onClick={() => setViewReportApp(null)}>
           <div
-            style={{ ...styles.modalBox, maxWidth: 680, maxHeight: "88vh", display: "flex", flexDirection: "column", overflowY: "auto" }}
+            style={{ ...styles.modalBox, maxWidth: 980, maxHeight: "88vh", display: "flex", flexDirection: "column", overflowY: "auto" }}
             onClick={(e) => e.stopPropagation()}
           >
             <div style={styles.modalHeader}>
               <div>
                 <h4 style={{ margin: 0, color: "#1e3a8a", display: "flex", alignItems: "center", gap: 8 }}>
-                  <i className="bi bi-journal-text"></i> NHẬT KÝ THỰC TẬP HÀNG TUẦN
+                  <i className="bi bi-clipboard-data"></i>TIẾN ĐỘ CÔNG VIỆC HÀNG TUẦN
                 </h4>
                 <p style={{ margin: "4px 0 0", fontSize: 12, color: "#64748b" }}>
                   Sinh viên: <strong>{viewReportApp.fullName}</strong> &mdash; {viewReportApp.topic?.topicname || "Hồ sơ tự do"}
@@ -683,12 +770,72 @@ export default function LecturerStudent() {
             </div>
 
             <div style={{ padding: "20px 24px", overflowY: "auto" }}>
+              <div style={styles.assignmentBox}>
+                <div style={styles.assignmentHeader}>
+                  <h5 style={styles.assignmentTitle}>
+                    <i className="bi bi-calendar2-week"></i> Kế hoạch giao việc theo tuần
+                  </h5>
+                  <button
+                    style={styles.assignmentSaveBtn}
+                    onClick={handleSaveAssignments}
+                    disabled={assignmentSaving || weeklyLoading}
+                  >
+                    <i className="bi bi-save-fill"></i>
+                    {assignmentSaving ? "Đang lưu..." : "Lưu kế hoạch"}
+                  </button>
+                </div>
+
+                <div style={styles.assignmentTable}>
+                  <div style={styles.assignmentHeaderRow}>
+                    <div style={styles.assignmentTableHead}>Tuần</div>
+                    <div style={styles.assignmentTableHead}>Từ ngày</div>
+                    <div style={styles.assignmentTableHead}>Đến ngày</div>
+                    <div style={styles.assignmentTableHead}>Nội dung giao việc</div>
+                    <div style={styles.assignmentTableHead}>Buổi/giờ</div>
+                  </div>
+
+                  {assignmentForm.map((row) => (
+                    <div style={styles.assignmentRow} key={row.week}>
+                      <div style={styles.assignmentWeek}>Tuần {row.week}</div>
+                      <input
+                        type="date"
+                        style={styles.assignmentInput}
+                        value={row.fromDate}
+                        onChange={(e) => handleAssignmentChange(row.week, "fromDate", e.target.value)}
+                      />
+                      <input
+                        type="date"
+                        style={styles.assignmentInput}
+                        value={row.toDate}
+                        onChange={(e) => handleAssignmentChange(row.week, "toDate", e.target.value)}
+                      />
+                      <textarea
+                        style={styles.assignmentTextarea}
+                        value={row.content}
+                        placeholder="Nhập công việc giao cho sinh viên"
+                        onChange={(e) => handleAssignmentChange(row.week, "content", e.target.value)}
+                      />
+                      <input
+                        style={styles.assignmentInput}
+                        value={row.hoursOrSessions}
+                        placeholder="VD: 6 buổi"
+                        onChange={(e) => handleAssignmentChange(row.week, "hoursOrSessions", e.target.value)}
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <h5 style={styles.progressSectionTitle}>
+                <i className="bi bi-list-check"></i> Báo cáo tiến độ đã nộp
+              </h5>
+
               {weeklyLoading ? (
-                <p style={{ color: "#64748b", textAlign: "center", padding: 30 }}>⏳ Đang tải nhật ký...</p>
+                <p style={{ color: "#64748b", textAlign: "center", padding: 30 }}>Đang tải báo cáo tiến độ...</p>
               ) : weeklyReports.length === 0 ? (
                 <div style={{ textAlign: "center", color: "#94a3b8", padding: "30px 0", fontStyle: "italic" }}>
                   <i className="bi bi-inbox" style={{ fontSize: 32, display: "block", marginBottom: 8 }}></i>
-                  Sinh viên chưa nộp nhật ký nào.
+                  Sinh viên chưa nộp báo cáo tiến độ nào.
                 </div>
               ) : (
                 <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
@@ -710,11 +857,19 @@ export default function LecturerStudent() {
                             {new Date(report.createdAt).toLocaleDateString("vi-VN")}
                           </span>
                         </div>
+                        <div style={styles.reportMetaRow}>
+                          <span>
+                            <i className="bi bi-calendar-week"></i> {reportDateRange(report)}
+                          </span>
+                          <span>
+                            <i className="bi bi-clock-history"></i> {report.hoursOrSessions || "Chưa nhập số buổi/giờ"}
+                          </span>
+                        </div>
 
-                        {/* Nội dung sinh viên */}
+                        {/* Nội dung báo cáo */}
                         <div style={{ marginBottom: 14 }}>
                           <p style={{ fontSize: 12, fontWeight: 700, color: "#475569", marginBottom: 4 }}>
-                            <i className="bi bi-person-fill me-1"></i> Nội dung sinh viên:
+                            <i className="bi bi-clipboard2-check-fill me-1"></i> Nội dung báo cáo:
                           </p>
                           <p style={{ fontSize: 13, color: "#334155", whiteSpace: "pre-wrap", lineHeight: 1.6, margin: 0, padding: "10px 12px", background: "#f8fafc", borderRadius: 8, border: "1px solid #e2e8f0" }}>
                             {report.content}
@@ -766,19 +921,20 @@ export default function LecturerStudent() {
 
 const styles = {
   container: {
-    minHeight: "85vh",
-    padding: "24px",
-    background: "linear-gradient(180deg, #f8fbff 0%, #eef4ff 50%, #f8fafc 100%)",
-    fontFamily: "'Inter', Arial, sans-serif",
+    minHeight: "70vh",
+    padding: 0,
+    background: "transparent",
+    fontFamily: "'Outfit', 'Inter', Arial, sans-serif",
   },
 
   header: {
-    marginBottom: "24px",
+    marginBottom: "18px",
     background: "#ffffff",
-    borderRadius: "16px",
-    padding: "20px 24px",
-    boxShadow: "0 8px 30px rgba(37,99,235,0.06)",
-    border: "1px solid #e2e8f0",
+    borderRadius: "8px",
+    padding: "18px 20px",
+    boxShadow: "0 1px 2px rgba(15,23,42,0.06)",
+    border: "1px solid #d7dee8",
+    borderLeft: "4px solid #f29111",
   },
 
   backBtn: {
@@ -786,7 +942,7 @@ const styles = {
     background: "#eff6ff",
     color: "#2563eb",
     border: "1px solid #bfdbfe",
-    borderRadius: "10px",
+    borderRadius: "8px",
     cursor: "pointer",
     fontSize: "13px",
     fontWeight: "600",
@@ -798,19 +954,19 @@ const styles = {
   },
 
   pageTitle: {
-    fontSize: "28px",
+    fontSize: "22px",
     fontWeight: "800",
-    color: "#0f172a",
+    color: "#083c73",
     margin: "0 0 6px 0",
     display: "flex",
     alignItems: "center",
     gap: 10,
-    letterSpacing: "-0.5px",
+    letterSpacing: 0,
   },
 
   titleIcon: {
-    color: "#f59e0b",
-    fontSize: "26px",
+    color: "#083c73",
+    fontSize: "22px",
   },
 
   subTitle: {
@@ -824,14 +980,14 @@ const styles = {
     display: "grid",
     gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
     gap: "16px",
-    marginBottom: "24px",
+    marginBottom: "18px",
   },
 
   statsCard: {
     background: "#ffffff",
-    padding: "18px",
-    borderRadius: "16px",
-    boxShadow: "0 4px 15px rgba(15,23,42,0.04)",
+    padding: "16px 18px",
+    borderRadius: "8px",
+    boxShadow: "0 1px 2px rgba(15,23,42,0.06)",
     display: "flex",
     flexDirection: "column",
     gap: "6px",
@@ -845,7 +1001,7 @@ const styles = {
   },
 
   statsValue: {
-    fontSize: "28px",
+    fontSize: "24px",
     fontWeight: "800",
     lineHeight: 1.2,
   },
@@ -853,13 +1009,13 @@ const styles = {
   filterBar: {
     display: "flex",
     gap: "12px",
-    marginBottom: "20px",
+    marginBottom: "18px",
     flexWrap: "wrap",
     background: "#ffffff",
-    padding: "16px",
-    borderRadius: "14px",
-    boxShadow: "0 4px 15px rgba(15,23,42,0.03)",
-    border: "1px solid #e2e8f0",
+    padding: "14px",
+    borderRadius: "8px",
+    boxShadow: "0 1px 2px rgba(15,23,42,0.06)",
+    border: "1px solid #d7dee8",
   },
 
   searchBox: {
@@ -880,8 +1036,8 @@ const styles = {
   searchInput: {
     width: "100%",
     padding: "10px 12px 10px 36px",
-    borderRadius: "10px",
-    border: "1px solid #dbe4f0",
+    borderRadius: "8px",
+    border: "1px solid #c5cfdd",
     fontSize: "13px",
     outline: "none",
     background: "#f8fafc",
@@ -890,8 +1046,8 @@ const styles = {
 
   filterSelect: {
     padding: "10px 14px",
-    borderRadius: "10px",
-    border: "1px solid #dbe4f0",
+    borderRadius: "8px",
+    border: "1px solid #c5cfdd",
     fontSize: "13px",
     background: "#f8fafc",
     outline: "none",
@@ -902,11 +1058,13 @@ const styles = {
 
   tableWrapper: {
     background: "#ffffff",
-    borderRadius: "16px",
+    borderRadius: "8px",
     overflow: "hidden",
-    border: "1px solid #e2e8f0",
-    boxShadow: "0 10px 30px rgba(15,23,42,0.04)",
+    border: "1px solid #d7dee8",
+    boxShadow: "0 1px 2px rgba(15,23,42,0.06)",
     overflowX: "auto",
+    maxWidth: "100%",
+    minWidth: 0,
   },
 
   table: {
@@ -1006,17 +1164,39 @@ const styles = {
     fontSize: "12px",
   },
 
+  rowActions: {
+    display: "flex",
+    flexWrap: "wrap",
+    gap: 6,
+    justifyContent: "center",
+    minWidth: 180,
+  },
+
   evaluateBtn: {
     padding: "8px 14px",
-    borderRadius: "10px",
+    borderRadius: "8px",
     border: "none",
     background: "#2563eb",
     color: "#ffffff",
     fontSize: "12px",
     fontWeight: "600",
     cursor: "pointer",
-    boxShadow: "0 2px 4px rgba(37,99,235,0.15)",
+    boxShadow: "none",
     transition: "all 0.2s",
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 4,
+  },
+
+  documentBtn: {
+    padding: "7px 12px",
+    borderRadius: "8px",
+    background: "#eff6ff",
+    color: "#1d4ed8",
+    fontSize: "12px",
+    fontWeight: "600",
+    cursor: "pointer",
+    border: "1px solid #bfdbfe",
     display: "inline-flex",
     alignItems: "center",
     gap: 4,
@@ -1027,7 +1207,7 @@ const styles = {
     position: "fixed",
     inset: 0,
     background: "rgba(15,23,42,0.3)",
-    backdropFilter: "blur(4px)",
+    backdropFilter: "none",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
@@ -1038,8 +1218,8 @@ const styles = {
     width: "100%",
     maxWidth: "500px",
     background: "#ffffff",
-    borderRadius: "20px",
-    boxShadow: "0 20px 50px rgba(15,23,42,0.15)",
+    borderRadius: "8px",
+    boxShadow: "0 8px 22px rgba(15,23,42,0.08)",
     overflow: "hidden",
     animation: "modalFadeIn 0.3s ease-out",
   },
@@ -1069,7 +1249,7 @@ const styles = {
   studentQuickInfo: {
     background: "#eff6ff",
     border: "1px solid #bfdbfe",
-    borderRadius: "12px",
+    borderRadius: "8px",
     padding: "14px 18px",
     marginBottom: "20px",
     fontSize: "13px",
@@ -1094,7 +1274,7 @@ const styles = {
   formInput: {
     width: "100%",
     padding: "10px 14px",
-    borderRadius: "10px",
+    borderRadius: "8px",
     border: "1px solid #cbd5e1",
     fontSize: "13px",
     outline: "none",
@@ -1104,7 +1284,7 @@ const styles = {
   formTextarea: {
     width: "100%",
     padding: "10px 14px",
-    borderRadius: "10px",
+    borderRadius: "8px",
     border: "1px solid #cbd5e1",
     fontSize: "13px",
     outline: "none",
@@ -1123,7 +1303,7 @@ const styles = {
 
   modalCancelBtn: {
     padding: "10px 18px",
-    borderRadius: "10px",
+    borderRadius: "8px",
     border: "1px solid #cbd5e1",
     background: "#ffffff",
     color: "#475569",
@@ -1134,20 +1314,19 @@ const styles = {
 
   modalSaveBtn: {
     padding: "10px 20px",
-    borderRadius: "10px",
+    borderRadius: "8px",
     border: "none",
     background: "#16a34a",
     color: "#ffffff",
     fontSize: "13px",
     fontWeight: "600",
     cursor: "pointer",
-    boxShadow: "0 2px 4px rgba(22,163,74,0.15)",
+    boxShadow: "none",
   },
 
   viewReportBtn: {
     padding: "7px 12px",
     borderRadius: "8px",
-    border: "none",
     background: "#f0fdf4",
     color: "#15803d",
     fontSize: "12px",
@@ -1168,7 +1347,7 @@ const styles = {
     fontSize: "12px",
     fontWeight: "600",
     cursor: "pointer",
-    boxShadow: "0 2px 6px rgba(37,99,235,0.25)",
+    boxShadow: "none",
   },
 
   untopicHeader: {
@@ -1189,12 +1368,146 @@ const styles = {
     fontWeight: 700,
   },
 
+  assignmentBox: {
+    background: "#ffffff",
+    border: "1px solid #d7dee8",
+    borderRadius: 8,
+    padding: "14px 16px",
+    marginBottom: 16,
+  },
+
+  assignmentHeader: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+    flexWrap: "wrap",
+    marginBottom: 12,
+  },
+
+  assignmentTitle: {
+    margin: 0,
+    display: "flex",
+    alignItems: "center",
+    gap: 8,
+    color: "#083c73",
+    fontSize: 14,
+    fontWeight: 800,
+  },
+
+  assignmentSaveBtn: {
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    padding: "8px 12px",
+    borderRadius: 8,
+    border: "1px solid #bbf7d0",
+    background: "#f0fdf4",
+    color: "#166534",
+    cursor: "pointer",
+    fontSize: 12,
+    fontWeight: 800,
+  },
+
+  assignmentTable: {
+    display: "flex",
+    flexDirection: "column",
+    gap: 8,
+    overflowX: "auto",
+  },
+
+  assignmentHeaderRow: {
+    display: "grid",
+    gridTemplateColumns: "72px 130px 130px minmax(260px, 1fr) 120px",
+    gap: 8,
+    minWidth: 760,
+    alignItems: "center",
+  },
+
+  assignmentTableHead: {
+    color: "#475569",
+    fontSize: 11,
+    fontWeight: 800,
+    textTransform: "uppercase",
+  },
+
+  assignmentRow: {
+    display: "grid",
+    gridTemplateColumns: "72px 130px 130px minmax(260px, 1fr) 120px",
+    gap: 8,
+    minWidth: 760,
+    alignItems: "stretch",
+  },
+
+  assignmentWeek: {
+    display: "flex",
+    alignItems: "center",
+    color: "#083c73",
+    fontSize: 12,
+    fontWeight: 800,
+  },
+
+  assignmentInput: {
+    width: "100%",
+    minHeight: 36,
+    padding: "8px 10px",
+    borderRadius: 8,
+    border: "1px solid #cbd5e1",
+    fontSize: 12,
+    color: "#1e293b",
+    boxSizing: "border-box",
+  },
+
+  assignmentTextarea: {
+    width: "100%",
+    minHeight: 38,
+    padding: "8px 10px",
+    borderRadius: 8,
+    border: "1px solid #cbd5e1",
+    fontSize: 12,
+    color: "#1e293b",
+    resize: "vertical",
+    boxSizing: "border-box",
+  },
+
+  progressSectionTitle: {
+    margin: "2px 0 12px",
+    display: "flex",
+    alignItems: "center",
+    gap: 8,
+    color: "#083c73",
+    fontSize: 14,
+    fontWeight: 800,
+  },
+
   reportViewCard: {
     background: "#fff",
     border: "1px solid #e2e8f0",
-    borderRadius: 14,
+    borderRadius: 8,
     padding: "16px 18px",
-    boxShadow: "0 2px 8px rgba(0,0,0,0.04)",
+    boxShadow: "0 1px 2px rgba(15,23,42,0.06)",
+  },
+
+  reportExportRow: {
+    display: "flex",
+    gap: 10,
+    flexWrap: "wrap",
+    marginBottom: 16,
+  },
+
+  reportExportBtn: {
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    padding: "8px 12px",
+    borderRadius: 8,
+    border: "1px solid",
+    fontSize: 12,
+    fontWeight: 700,
+    cursor: "pointer",
+    background: "#fff",
   },
 
   reportViewHeader: {
@@ -1205,8 +1518,18 @@ const styles = {
     flexWrap: "wrap",
   },
 
+  reportMetaRow: {
+    display: "flex",
+    gap: 12,
+    flexWrap: "wrap",
+    color: "#64748b",
+    fontSize: 12,
+    fontWeight: 600,
+    marginBottom: 12,
+  },
+
   weekLabel: {
-    background: "linear-gradient(135deg, #2563eb, #1d4ed8)",
+    background: "#083c73",
     color: "#fff",
     fontWeight: 700,
     fontSize: 12,
