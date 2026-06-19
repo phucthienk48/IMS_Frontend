@@ -227,9 +227,6 @@ export default function UserManagement() {
       {/* Header */}
       <div style={styles.header}>
         <div>
-          <button style={styles.backBtn} onClick={() => navigate("/admin")}>
-            <i className="bi bi-arrow-left"></i> Quay lại
-          </button>
           <h2 style={styles.pageTitle}>
             <i className="bi bi-people-fill" style={styles.titleIcon}></i>
             QUẢN LÝ TÀI KHOẢN HỆ THỐNG

@@ -8,6 +8,7 @@ export default function LecturerApplication() {
   const [applications, setApplications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [topicSearch, setTopicSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
@@ -49,7 +50,7 @@ export default function LecturerApplication() {
     setCurrentPage(1);
     setGroupPage(1);
     setFreePage(1);
-  }, [search, statusFilter]);
+  }, [search, statusFilter, topicSearch]);
 
   const getBadgeStyle = (status) => {
     const base = {
@@ -142,13 +143,27 @@ export default function LecturerApplication() {
 
     const matchStatus = statusFilter === "all" || app.status === statusFilter;
 
-    return matchSearch && matchStatus;
+    const appTopicId = app.topic && (app.topic._id || app.topic);
+    const resolvedTopic = typeof app.topic === "object" && app.topic !== null
+      ? app.topic
+      : topics.find((t) => t._id === appTopicId);
+    const appTopicName = resolvedTopic?.topicname || "";
+    const matchTopic =
+      !topicSearch.trim() ||
+      appTopicName.toLowerCase().includes(topicSearch.toLowerCase().trim());
+
+    return matchSearch && matchStatus && matchTopic;
   });
 
   // Nhóm hồ sơ theo đề tài
   // Build grouped list based on topics collection so topics with 0 apps still appear
   const freeApps = [];
-  const groupedTopicList = topics.map((t) => {
+  const filteredTopics = topics.filter((t) =>
+    !topicSearch.trim() ||
+    (t.topicname || "").toLowerCase().includes(topicSearch.toLowerCase().trim())
+  );
+
+  const groupedTopicList = filteredTopics.map((t) => {
     const appsForTopic = filteredApps.filter((app) => {
       // support app.topic being object or id string
       const appTopicId = app.topic && (app.topic._id || app.topic);
@@ -181,9 +196,6 @@ export default function LecturerApplication() {
       {/* Header */}
       <div style={styles.header}>
         <div>
-          <button style={styles.backBtn} onClick={() => navigate("/lecturer")}>
-            <i className="bi bi-arrow-left"></i> Quay lại
-          </button>
           <h2 style={styles.pageTitle}>
             <i
               className="bi bi-file-earmark-text-fill"
@@ -213,7 +225,6 @@ export default function LecturerApplication() {
         ))}
       </div>
 
-      {/* Bộ lọc và tìm kiếm */}
       <div style={styles.filterBar}>
         <div style={styles.searchBox}>
           <i className="bi bi-search" style={styles.searchIcon}></i>
@@ -223,6 +234,48 @@ export default function LecturerApplication() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
+          {search && (
+            <span
+              style={{
+                position: "absolute",
+                right: "14px",
+                color: "#94a3b8",
+                cursor: "pointer",
+                fontSize: "14px",
+                display: "flex",
+                alignItems: "center"
+              }}
+              onClick={() => setSearch("")}
+            >
+              <i className="bi bi-x-circle-fill"></i>
+            </span>
+          )}
+        </div>
+
+        <div style={{ ...styles.searchBox, marginLeft: 16 }}>
+          <i className="bi bi-journal-text" style={styles.searchIcon}></i>
+          <input
+            style={styles.searchInput}
+            placeholder="Tìm theo tên đề tài..."
+            value={topicSearch}
+            onChange={(e) => setTopicSearch(e.target.value)}
+          />
+          {topicSearch && (
+            <span
+              style={{
+                position: "absolute",
+                right: "14px",
+                color: "#94a3b8",
+                cursor: "pointer",
+                fontSize: "14px",
+                display: "flex",
+                alignItems: "center"
+              }}
+              onClick={() => setTopicSearch("")}
+            >
+              <i className="bi bi-x-circle-fill"></i>
+            </span>
+          )}
         </div>
 
         <select

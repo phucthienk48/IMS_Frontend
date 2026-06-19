@@ -16,6 +16,34 @@ export default function AdminInternshiptopic() {
   const [page, setPage] = useState(1);
   const pageSize = 8;
 
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [lecturers, setLecturers] = useState([]);
+  const [form, setForm] = useState({
+    topicname: "",
+    description: "",
+    requirement: "",
+    quantity: 1,
+    workDaysPerWeek: "",
+    workHoursPerDay: "",
+    startday: "",
+    endday: "",
+    lecturer: "",
+  });
+
+  const fetchLecturers = async () => {
+    try {
+      const res = await fetch("http://localhost:5000/api/users");
+      const data = await res.json();
+      if (data.success || data.data) {
+        const list = data.data || [];
+        setLecturers(list.filter((u) => u.role === "lecturer"));
+      }
+    } catch (err) {
+      console.error("Lỗi khi tải danh sách giảng viên:", err);
+    }
+  };
+
   const fetchTopics = async () => {
     try {
       setLoading(true);
@@ -32,7 +60,136 @@ export default function AdminInternshiptopic() {
   useEffect(() => {
     fetchTopics();
     fetchInternshipCenter("http://localhost:5000").then(setCenter);
+    fetchLecturers();
   }, []);
+
+  const handleChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    const nextValue =
+      type === "checkbox"
+        ? checked
+        : ["quantity", "workDaysPerWeek", "workHoursPerDay"].includes(name)
+          ? value === ""
+            ? ""
+            : Number(value)
+          : value;
+
+    setForm((prev) => ({
+      ...prev,
+      [name]: nextValue,
+    }));
+  };
+
+  const handleEdit = (topic) => {
+    setEditingId(topic._id);
+    setForm({
+      topicname: topic.topicname || "",
+      description: topic.description || "",
+      requirement: topic.requirement || "",
+      quantity: topic.quantity || 1,
+      workDaysPerWeek: topic.workDaysPerWeek === null || topic.workDaysPerWeek === undefined ? "" : topic.workDaysPerWeek,
+      workHoursPerDay: topic.workHoursPerDay === null || topic.workHoursPerDay === undefined ? "" : topic.workHoursPerDay,
+      startday: topic.startday ? topic.startday.split("T")[0] : "",
+      endday: topic.endday ? topic.endday.split("T")[0] : "",
+      lecturer: topic.lecturer?._id || topic.lecturer || "",
+    });
+    setShowCreateForm(false);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const resetForm = () => {
+    setForm({
+      topicname: "",
+      description: "",
+      requirement: "",
+      quantity: 1,
+      workDaysPerWeek: "",
+      workHoursPerDay: "",
+      startday: "",
+      endday: "",
+      lecturer: "",
+    });
+  };
+
+  const handleCancel = () => {
+    setEditingId(null);
+    setShowCreateForm(false);
+    resetForm();
+  };
+
+  const handleOpenCreate = () => {
+    setEditingId(null);
+    setShowCreateForm(true);
+    resetForm();
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    if (form.startday && form.endday && form.startday > form.endday) {
+      alert("Ngày kết thúc phải sau ngày bắt đầu.");
+      return;
+    }
+    if (!form.quantity || form.quantity < 1) {
+      alert("Số lượng sinh viên phải lớn hơn hoặc bằng 1.");
+      return;
+    }
+    if (form.workDaysPerWeek !== "" && (form.workDaysPerWeek < 1 || form.workDaysPerWeek > 7)) {
+      alert("Số ngày thực tập mỗi tuần phải từ 1 đến 7.");
+      return;
+    }
+    if (form.workHoursPerDay !== "" && (form.workHoursPerDay < 1 || form.workHoursPerDay > 24)) {
+      alert("Số giờ thực tập mỗi ngày phải từ 1 đến 24.");
+      return;
+    }
+    if (!form.lecturer) {
+      alert("Vui lòng chọn giảng viên phụ trách.");
+      return;
+    }
+
+    const payload = {
+      ...form,
+      quantity: Number(form.quantity) || 1,
+      workDaysPerWeek: form.workDaysPerWeek === "" ? null : Number(form.workDaysPerWeek),
+      workHoursPerDay: form.workHoursPerDay === "" ? null : Number(form.workHoursPerDay),
+    };
+
+    if (editingId) {
+      try {
+        const res = await fetch(`${API_BASE}/${editingId}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || "Cập nhật đề tài thất bại");
+        
+        fetchTopics();
+        handleCancel();
+        alert("Đã cập nhật đề tài thành công.");
+      } catch (err) {
+        console.error(err);
+        alert(err.message || "Không thể cập nhật đề tài.");
+      }
+    } else {
+      try {
+        const res = await fetch(API_BASE, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ...payload, status: "open" }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || "Tạo đề tài thất bại");
+        
+        fetchTopics();
+        handleCancel();
+        alert("Đã tạo đề tài mới thành công.");
+      } catch (err) {
+        console.error(err);
+        alert(err.message || "Không thể tạo đề tài.");
+      }
+    }
+  };
 
   useEffect(() => {
     setPage(1);
@@ -102,6 +259,11 @@ export default function AdminInternshiptopic() {
           label: topic.status === "open" ? "Đóng đăng ký" : "Mở đăng ký",
           icon: topic.status === "open" ? "bi-lock" : "bi-unlock",
           onClick: () => handleToggleStatus(topic._id, topic.status),
+        },
+        {
+          label: "Chỉnh sửa",
+          icon: "bi-pencil-fill",
+          onClick: () => handleEdit(topic),
         },
         {
           label: "Xóa đề tài",
@@ -212,6 +374,10 @@ export default function AdminInternshiptopic() {
                 Đã đóng
               </span>
             </div>
+            <button style={styles.createTopicBtn} onClick={handleOpenCreate}>
+              <i className="bi bi-plus-circle"></i>
+              Tạo đề tài mới
+            </button>
           </div>
         </div>
 
@@ -231,6 +397,187 @@ export default function AdminInternshiptopic() {
             </span>
           )}
         </div>
+
+        {(showCreateForm || editingId) && (
+          <div style={styles.formCard}>
+            <div style={styles.formHeader}>
+              <div style={styles.formTitleGroup}>
+                <div style={styles.formIconBadge}>
+                  <i
+                    className={`bi ${editingId ? "bi-pencil-fill" : "bi-plus-circle"}`}
+                    style={{ color: "#3b82f6", fontSize: 14 }}
+                  ></i>
+                </div>
+                <div>
+                  <h3 style={styles.formTitle}>
+                    {editingId ? "Cập nhật đề tài" : "Tạo đề tài mới"}
+                  </h3>
+                  <p style={styles.formSubtitle}>
+                    {editingId
+                      ? "Chỉnh sửa thông tin đề tài bên dưới"
+                      : "Điền thông tin đề tài mới và lưu lại."}
+                  </p>
+                </div>
+              </div>
+              <button
+                style={styles.formCloseBtn}
+                onClick={handleCancel}
+                title="Đóng"
+              >
+                <i className="bi bi-x-lg"></i>
+              </button>
+            </div>
+
+            <form style={styles.formGrid} onSubmit={handleSubmit}>
+              <div style={{ ...styles.fieldGroup, gridColumn: "1 / -1" }}>
+                <label style={styles.label}>Tên đề tài</label>
+                <input
+                  className="ait-input"
+                  style={styles.input}
+                  name="topicname"
+                  value={form.topicname}
+                  onChange={handleChange}
+                  placeholder="Nhập tên đề tài thực tập"
+                  required
+                />
+              </div>
+
+              <div style={styles.formSectionTitle}>Giảng viên & Thời gian thực tập</div>
+
+              <div style={styles.fieldGroup}>
+                <label style={styles.label}>Giảng viên phụ trách</label>
+                <select
+                  className="ait-select"
+                  style={styles.input}
+                  name="lecturer"
+                  value={form.lecturer}
+                  onChange={handleChange}
+                  required
+                >
+                  <option value="">-- Chọn giảng viên --</option>
+                  {lecturers.map((lecturer) => (
+                    <option key={lecturer._id} value={lecturer._id}>
+                      {lecturer.username} ({lecturer.email})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div style={styles.fieldGroup}>
+                <label style={styles.label}>Số lượng sinh viên</label>
+                <input
+                  className="ait-input"
+                  style={styles.input}
+                  name="quantity"
+                  type="number"
+                  min="1"
+                  value={form.quantity}
+                  onChange={handleChange}
+                  required
+                />
+              </div>
+
+              <div style={styles.fieldGroup}>
+                <label style={styles.label}>Ngày bắt đầu</label>
+                <input
+                  className="ait-input"
+                  style={styles.input}
+                  name="startday"
+                  type="date"
+                  value={form.startday}
+                  onChange={handleChange}
+                  required
+                />
+              </div>
+
+              <div style={styles.fieldGroup}>
+                <label style={styles.label}>Ngày kết thúc</label>
+                <input
+                  className="ait-input"
+                  style={styles.input}
+                  name="endday"
+                  type="date"
+                  value={form.endday}
+                  onChange={handleChange}
+                  required
+                />
+              </div>
+
+              <div style={styles.fieldGroup}>
+                <label style={styles.label}>Số ngày / tuần</label>
+                <input
+                  className="ait-input"
+                  style={styles.input}
+                  name="workDaysPerWeek"
+                  type="number"
+                  min="1"
+                  max="7"
+                  value={form.workDaysPerWeek}
+                  onChange={handleChange}
+                  placeholder="Ví dụ: 3"
+                />
+              </div>
+
+              <div style={styles.fieldGroup}>
+                <label style={styles.label}>Số giờ / ngày</label>
+                <input
+                  className="ait-input"
+                  style={styles.input}
+                  name="workHoursPerDay"
+                  type="number"
+                  min="1"
+                  max="24"
+                  value={form.workHoursPerDay}
+                  onChange={handleChange}
+                  placeholder="Ví dụ: 8"
+                />
+              </div>
+
+              <div style={styles.formSectionTitle}>Nội dung biểu mẫu</div>
+
+              <div style={{ ...styles.fieldGroup, gridColumn: "1 / -1" }}>
+                <label style={styles.label}>Mô tả công việc</label>
+                <textarea
+                  className="ait-textarea"
+                  style={styles.textarea}
+                  name="description"
+                  value={form.description}
+                  onChange={handleChange}
+                  placeholder="Mô tả nội dung thực tập, phạm vi công việc..."
+                  required
+                />
+              </div>
+
+              <div style={{ ...styles.fieldGroup, gridColumn: "1 / -1" }}>
+                <label style={styles.label}>Yêu cầu / kế hoạch dự kiến</label>
+                <textarea
+                  className="ait-textarea"
+                  style={styles.textarea}
+                  name="requirement"
+                  value={form.requirement}
+                  onChange={handleChange}
+                  placeholder="Nhập yêu cầu, kỹ năng hoặc kế hoạch công việc dự kiến..."
+                  required
+                />
+              </div>
+
+              <div style={styles.buttonGroup}>
+                <button type="submit" style={styles.submitBtn}>
+                  <i className="bi bi-check-circle-fill"></i>
+                  {editingId ? "Lưu thay đổi" : "Tạo đề tài"}
+                </button>
+                <button
+                  type="button"
+                  style={styles.cancelBtn}
+                  onClick={handleCancel}
+                >
+                  <i className="bi bi-x-circle"></i>
+                  Hủy bỏ
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
 
         {/* TOPICS TABLE */}
         <div style={styles.tableCard}>
@@ -769,6 +1116,178 @@ const styles = {
     cursor: "pointer",
     boxShadow: "none",
     transition: "all 0.22s ease",
+    fontFamily: "'Inter', sans-serif",
+  },
+  createTopicBtn: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 8,
+    padding: "12px 18px",
+    borderRadius: 8,
+    border: "none",
+    background: "#083c73",
+    color: "#fff",
+    fontWeight: 700,
+    cursor: "pointer",
+    boxShadow: "none",
+    transition: "all 0.22s ease",
+    whiteSpace: "nowrap",
+  },
+  formCard: {
+    marginBottom: 24,
+    background: "#fff",
+    borderRadius: 8,
+    boxShadow: "0 1px 2px rgba(15,23,42,0.06)",
+    border: "1px solid #d7dee8",
+    overflow: "hidden",
+  },
+  formHeader: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: "20px 28px",
+    background: "#f8fafc",
+    borderBottom: "1px solid #e5eaf1",
+  },
+  formTitleGroup: {
+    display: "flex",
+    alignItems: "center",
+    gap: 14,
+  },
+  formIconBadge: {
+    width: 40,
+    height: 40,
+    background: "#dbeafe",
+    border: "1.5px solid #bfdbfe",
+    borderRadius: 8,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  formTitle: {
+    margin: 0,
+    color: "#1e3a8a",
+    fontSize: 18,
+    fontWeight: 800,
+  },
+  formSubtitle: {
+    margin: "2px 0 0",
+    color: "#3b82f6",
+    fontSize: 12,
+    fontWeight: 500,
+  },
+  formCloseBtn: {
+    width: 36,
+    height: 36,
+    background: "rgba(239,68,68,0.1)",
+    border: "1px solid rgba(239,68,68,0.2)",
+    borderRadius: 10,
+    cursor: "pointer",
+    color: "#ef4444",
+    fontSize: 14,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    transition: "0.2s",
+  },
+  formGrid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+    gap: 20,
+    padding: "28px",
+  },
+  fieldGroup: {
+    display: "flex",
+    flexDirection: "column",
+    gap: 8,
+  },
+  formSectionTitle: {
+    gridColumn: "1 / -1",
+    color: "#083c73",
+    fontSize: 13,
+    fontWeight: 800,
+    textTransform: "uppercase",
+    letterSpacing: 0,
+    borderTop: "1px solid #e2e8f0",
+    paddingTop: 18,
+    marginTop: 4,
+  },
+  label: {
+    fontSize: 12,
+    fontWeight: 700,
+    color: "#475569",
+    textTransform: "uppercase",
+    letterSpacing: 0,
+  },
+  input: {
+    width: "100%",
+    padding: "12px 16px",
+    border: "1.5px solid #e2e8f0",
+    borderRadius: 8,
+    outline: "none",
+    fontSize: 14,
+    color: "#0f172a",
+    background: "#f8fafc",
+    transition: "all 0.2s ease",
+    fontWeight: 500,
+    boxSizing: "border-box",
+    fontFamily: "'Inter', sans-serif",
+  },
+  textarea: {
+    width: "100%",
+    minHeight: 100,
+    padding: "12px 16px",
+    border: "1.5px solid #e2e8f0",
+    borderRadius: 8,
+    outline: "none",
+    fontSize: 14,
+    color: "#0f172a",
+    resize: "vertical",
+    background: "#f8fafc",
+    transition: "all 0.2s ease",
+    fontWeight: 500,
+    boxSizing: "border-box",
+    fontFamily: "'Inter', sans-serif",
+  },
+  buttonGroup: {
+    gridColumn: "1 / -1",
+    display: "flex",
+    gap: 12,
+    marginTop: 4,
+  },
+  submitBtn: {
+    flex: 1,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    padding: "13px 20px",
+    borderRadius: 8,
+    border: "none",
+    background: "#083c73",
+    color: "#fff",
+    fontWeight: 700,
+    fontSize: 14,
+    cursor: "pointer",
+    boxShadow: "none",
+    transition: "0.25s ease",
+    fontFamily: "'Inter', sans-serif",
+  },
+  cancelBtn: {
+    flex: 1,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    padding: "13px 20px",
+    borderRadius: 8,
+    border: "1.5px solid #e2e8f0",
+    background: "#fff",
+    color: "#64748b",
+    fontWeight: 700,
+    fontSize: 14,
+    cursor: "pointer",
+    transition: "0.25s ease",
     fontFamily: "'Inter', sans-serif",
   },
 };

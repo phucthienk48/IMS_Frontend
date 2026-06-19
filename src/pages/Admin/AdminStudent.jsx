@@ -410,9 +410,6 @@ export default function AdminStudent() {
     <div style={styles.container}>
       <div style={styles.header}>
         <div>
-          <button style={styles.backBtn} onClick={() => navigate("/admin")}>
-            <i className="bi bi-arrow-left"></i> Quay lại
-          </button>
           <h2 style={styles.pageTitle}>
             <i className="bi bi-people-fill" style={styles.titleIcon}></i>
             DANH SÁCH SINH VIÊN
