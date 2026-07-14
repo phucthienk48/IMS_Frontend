@@ -1,5 +1,7 @@
 import { NavLink, useNavigate } from "react-router-dom";
 
+const CUSC_LOGO = "/Logo CUSC Computer Education.png";
+
 export default function Header() {
   const navigate = useNavigate();
   const user = JSON.parse(localStorage.getItem("user"));
@@ -15,12 +17,7 @@ export default function Header() {
       {/* Tier 1: CUSC Brand Header */}
       <div className="ims-public-topbar" style={styles.topHeader}>
         <div className="ims-public-brand" style={styles.logoGroup} onClick={() => navigate("/")}>
-          {/* Stylized CSS CUSC Logo */}
-          <div style={styles.logoBox}>
-            <div style={styles.logoTriangle}></div>
-            <span style={styles.logoTextMain}>Cusc</span>
-            <span style={styles.logoTextRegistered}>®</span>
-          </div>
+          <img src={CUSC_LOGO} alt="CUSC Computer Education" style={styles.logoImage} />
           <div className="ims-public-brand-text" style={styles.logoTextGroup}>
             <h1 style={styles.brandTitle}>TRUNG TÂM CÔNG NGHỆ PHẦN MỀM</h1>
             <h2 style={styles.brandSubtitle}>TRƯỜNG ĐẠI HỌC CẦN THƠ</h2>
@@ -29,10 +26,6 @@ export default function Header() {
 
         {/* Top Right Actions */}
         <div className="ims-public-actions" style={styles.topRight}>
-          <div style={styles.langSelector}>
-            <span style={styles.flagIcon}>VI</span>
-          </div>
-
           {user ? (
             <div className="ims-public-user" style={styles.userSection}>
               <div style={styles.userInfo}>
@@ -81,9 +74,11 @@ export default function Header() {
             <i className="bi bi-journal-bookmark-fill" style={styles.navIcon}></i> Danh sách đề tài
           </NavLink>
 
-          <NavLink
-            className="ims-public-nav-link"
-            to="/application"
+          {user && (
+            <>
+              <NavLink
+                className="ims-public-nav-link"
+                to="/application"
             style={({ isActive }) => ({
               ...styles.navLink,
               ...(isActive ? styles.navLinkActive : {}),
@@ -102,6 +97,8 @@ export default function Header() {
           >
             <i className="bi bi-clipboard-check-fill" style={styles.navIcon}></i> Kết quả đánh giá
           </NavLink>
+            </>
+          )}
         </nav>
       </div>
     </header>
@@ -133,40 +130,11 @@ const styles = {
     gap: "15px",
     cursor: "pointer",
   },
-  logoBox: {
-    position: "relative",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
+  logoImage: {
+    width: "70px",
     height: "55px",
-    padding: "0 10px",
-  },
-  logoTriangle: {
-    position: "absolute",
-    left: 0,
-    top: "10%",
-    width: 0,
-    height: 0,
-    borderLeft: "25px solid transparent",
-    borderRight: "25px solid transparent",
-    borderBottom: "40px solid #f29111",
-    opacity: 0.6,
-    zIndex: 1,
-  },
-  logoTextMain: {
-    fontSize: "30px",
-    fontWeight: "900",
-    color: "#083c73",
-    zIndex: 2,
-    letterSpacing: 0,
-    fontFamily: "Georgia, serif",
-  },
-  logoTextRegistered: {
-    fontSize: "10px",
-    color: "#083c73",
-    alignSelf: "flex-start",
-    marginTop: "8px",
-    zIndex: 2,
+    objectFit: "contain",
+    display: "block",
   },
   logoTextGroup: {
     display: "flex",
@@ -192,18 +160,6 @@ const styles = {
     display: "flex",
     alignItems: "center",
     gap: "20px",
-  },
-  langSelector: {
-    display: "flex",
-    alignItems: "center",
-    borderRight: "1px solid #e2e8f0",
-    paddingRight: "15px",
-  },
-  flagIcon: {
-    fontSize: "12px",
-    fontWeight: "800",
-    color: "#083c73",
-    cursor: "pointer",
   },
   userSection: {
     display: "flex",

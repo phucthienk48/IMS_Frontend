@@ -34,7 +34,7 @@ export default function Home() {
     {
       icon: "bi-clipboard-check-fill",
       title: "Kết quả đánh giá",
-      desc: "Báo cáo tiến độ thực tập hằng tuần cho giảng viên.",
+      desc: "Theo dõi điểm số, nhận xét và kết quả thực tập từ giảng viên.",
       path: "/internship-result",
     },
   ];
@@ -42,7 +42,7 @@ export default function Home() {
   const processItems = [
     "Theo dõi danh sách các đề tài thực tập và lựa chọn đề tài phù hợp.",
     "Nộp hồ sơ thực tập (CV, bảng điểm, thông tin cá nhân).",
-    "Báo cáo tiến độ thực tập hằng tuần cho giảng viên.",
+    "Theo dõi điểm số, nhận xét và kết quả thực tập từ giảng viên.",
   ];
 
   return (

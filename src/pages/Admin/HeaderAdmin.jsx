@@ -1,6 +1,8 @@
 import { useNavigate } from "react-router-dom";
 import { useState } from "react";
 
+const CUSC_LOGO = "/Logo CUSC Computer Education.png";
+
 export default function HeaderAdmin() {
   const navigate = useNavigate();
   const user = JSON.parse(localStorage.getItem("user"));
@@ -21,9 +23,7 @@ export default function HeaderAdmin() {
       <div style={styles.container}>
         {/* ===== LOGO IMS ===== */}
         <div style={styles.logo} onClick={() => navigate("/admin")}>
-          <div style={styles.logoIcon}>
-            <i className="bi bi-mortarboard-fill"></i>
-          </div>
+          <img src={CUSC_LOGO} alt="CUSC Computer Education" style={styles.logoImage} />
 
           <div style={styles.logoText}>
             <span style={styles.brandMain}>IMS SYSTEM</span>
@@ -133,21 +133,14 @@ const styles = {
     cursor: "pointer",
   },
 
-  logoIcon: {
-    width: 48,
-    height: 48,
-
-    borderRadius: 14,
-
+  logoImage: {
+    width: 56,
+    height: 56,
+    objectFit: "contain",
+    display: "block",
     background: "#fff",
-    color: "#2563eb",
-
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-
-    fontSize: 24,
-
+    borderRadius: 12,
+    padding: 4,
     boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
   },
 
