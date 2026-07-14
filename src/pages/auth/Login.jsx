@@ -49,37 +49,12 @@ export default function Login() {
   return (
     <div style={styles.authShell}>
       <section style={styles.authCard}>
-        <aside style={styles.infoPanel}>
-          <div style={styles.logoMark}>
-            <i className="bi bi-mortarboard-fill"></i>
-          </div>
-          <div>
-            <div style={styles.kicker}>IMS CUSC</div>
-            <h1 style={styles.infoTitle}>Hệ thống quản lý thực tập</h1>
-            <p style={styles.infoText}>
-              Đăng nhập để xử lý hồ sơ, đề tài, báo cáo tiến độ và xuất biểu mẫu thực tập.
-            </p>
-          </div>
-          <div style={styles.infoList}>
-            <span>
-              <i className="bi bi-check-circle-fill"></i>
-              Quản lý hồ sơ thực tập tập trung
-            </span>
-            <span>
-              <i className="bi bi-check-circle-fill"></i>
-              Theo dõi tiến độ theo từng vai trò
-            </span>
-            <span>
-              <i className="bi bi-check-circle-fill"></i>
-              Xuất biểu mẫu Word đúng mẫu
-            </span>
-          </div>
-        </aside>
-
         <form style={styles.formPanel} onSubmit={handleSubmit}>
           <div style={styles.formHeader}>
             <h2 style={styles.formTitle}>Đăng nhập</h2>
-            <p style={styles.formSubtitle}>Sử dụng tài khoản đã được cấp trong hệ thống.</p>
+            <p style={styles.formSubtitle}>
+              Đăng nhập để truy cập Hệ thống Quản lý Thực tập.
+            </p>
           </div>
 
           {error && (
@@ -124,7 +99,10 @@ export default function Login() {
           </button>
 
           <p style={styles.footerText}>
-            Chưa có tài khoản? <Link to="/register" style={styles.link}>Đăng ký</Link>
+            Chưa có tài khoản?{" "}
+            <Link to="/register" style={styles.link}>
+              Đăng ký
+            </Link>
           </p>
         </form>
       </section>
@@ -134,145 +112,112 @@ export default function Login() {
 
 const styles = {
   authShell: {
-    minHeight: "calc(100vh - 220px)",
+    minHeight: "60vh",
     display: "flex",
-    alignItems: "center",
     justifyContent: "center",
+    alignItems: "center",
+    background: "#f5f7fb",
+    padding: "24px",
   },
+
   authCard: {
-    width: "min(100%, 980px)",
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
+    width: "100%",
+    maxWidth: "420px",
     background: "#fff",
+    borderRadius: "10px",
     border: "1px solid #d7dee8",
-    borderRadius: 8,
-    boxShadow: "0 8px 22px rgba(15,23,42,0.08)",
-    overflow: "hidden",
+    boxShadow: "0 8px 22px rgba(15,23,42,.08)",
   },
-  infoPanel: {
-    display: "flex",
-    flexDirection: "column",
-    gap: 18,
-    padding: 30,
-    background: "#083c73",
-    color: "#fff",
-    borderRight: "4px solid #f29111",
-  },
-  logoMark: {
-    width: 48,
-    height: 48,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: 8,
-    background: "rgba(255,255,255,0.12)",
-    color: "#f29111",
-    fontSize: 24,
-  },
-  kicker: {
-    color: "#f29111",
-    fontSize: 12,
-    fontWeight: 800,
-    marginBottom: 6,
-  },
-  infoTitle: {
-    color: "#fff",
-    fontSize: 25,
-    fontWeight: 800,
-    margin: "0 0 10px",
-  },
-  infoText: {
-    color: "#dbe4f0",
-    fontSize: 14,
-    lineHeight: 1.6,
-  },
-  infoList: {
-    display: "flex",
-    flexDirection: "column",
-    gap: 10,
-    color: "#e8eef6",
-    fontSize: 14,
-  },
+
   formPanel: {
-    padding: 34,
     display: "flex",
     flexDirection: "column",
-    justifyContent: "center",
-    gap: 16,
+    gap: "16px",
+    padding: "32px",
   },
+
   formHeader: {
-    marginBottom: 4,
+    textAlign: "center",
+    marginBottom: "8px",
   },
+
   formTitle: {
+    margin: 0,
     color: "#083c73",
-    fontSize: 25,
-    fontWeight: 800,
-    margin: "0 0 6px",
+    fontSize: "28px",
+    fontWeight: "700",
   },
+
   formSubtitle: {
+    marginTop: "8px",
     color: "#64748b",
-    fontSize: 14,
+    fontSize: "14px",
   },
+
   errorBox: {
     display: "flex",
     alignItems: "center",
-    gap: 8,
+    gap: "8px",
     padding: "10px 12px",
     border: "1px solid #fecaca",
-    borderRadius: 8,
+    borderRadius: "8px",
     background: "#fef2f2",
     color: "#b91c1c",
-    fontSize: 14,
-    fontWeight: 700,
+    fontSize: "14px",
   },
+
   field: {
     display: "flex",
     flexDirection: "column",
-    gap: 7,
+    gap: "6px",
   },
+
   label: {
+    fontSize: "14px",
+    fontWeight: "600",
     color: "#334155",
-    fontSize: 13,
-    fontWeight: 800,
   },
+
   inputWrap: {
     display: "flex",
     alignItems: "center",
-    gap: 10,
+    gap: "10px",
     padding: "0 12px",
-    border: "1px solid #c5cfdd",
-    borderRadius: 8,
-    background: "#fff",
+    border: "1px solid #cbd5e1",
+    borderRadius: "8px",
     color: "#083c73",
   },
+
   input: {
     flex: 1,
-    minWidth: 0,
     border: "none",
     outline: "none",
-    padding: "12px 0",
-    color: "#1e293b",
-    fontSize: 14,
     background: "transparent",
+    padding: "12px 0",
+    fontSize: "14px",
   },
+
   submitBtn: {
-    minHeight: 42,
-    border: "1px solid #083c73",
-    borderRadius: 8,
+    height: "44px",
+    border: "none",
+    borderRadius: "8px",
     background: "#083c73",
     color: "#fff",
-    fontSize: 15,
-    fontWeight: 800,
+    fontSize: "15px",
+    fontWeight: "600",
     cursor: "pointer",
   },
+
   footerText: {
-    color: "#64748b",
-    fontSize: 14,
     textAlign: "center",
+    color: "#64748b",
+    fontSize: "14px",
+    margin: 0,
   },
+
   link: {
     color: "#083c73",
-    fontWeight: 800,
     textDecoration: "none",
+    fontWeight: "600",
   },
 };

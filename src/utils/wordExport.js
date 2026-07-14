@@ -53,3 +53,8 @@ export const exportPhieuTheoDoiWord = (application) =>
   downloadWord("theo-doi", application, "M-TT-02-Phieu-theo-doi.doc").catch(
     (error) => alert(error.message),
   );
+
+export const exportPhieuDanhGiaWord = (application) =>
+  downloadWord("danh-gia", application, "M-TT-03-Phieu-danh-gia-co-quan.doc").catch(
+    (error) => alert(error.message),
+  );

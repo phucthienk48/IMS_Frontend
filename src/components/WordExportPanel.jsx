@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
   exportPhieuGiaoViecWord,
   exportPhieuNhanSVWord,
@@ -15,6 +16,8 @@ export default function WordExportPanel({
   weeklyAssignments = [],
   weeklyReports = [],
 }) {
+  const [hoveredKey, setHoveredKey] = useState(null);
+  const [activeKey, setActiveKey] = useState(null);
   const assignmentCount = countFilledRows(weeklyAssignments);
   const reportCount = countFilledRows(weeklyReports);
 
@@ -82,25 +85,48 @@ export default function WordExportPanel({
       </div>
 
       <div style={styles.actions}>
-        {exportItems.map((item) => (
-          <button
-            key={item.key}
-            type="button"
-            style={{
-              ...styles.button,
-              color: item.color,
-              background: item.background,
-              borderColor: item.border,
-              opacity: item.blocked ? 0.68 : 1,
-            }}
-            onClick={() => handleExport(item)}
-            title={item.blocked ? item.blockedMessage : item.label}
-          >
-            <i className={`bi ${item.icon}`} style={styles.buttonIcon} />
-            <span style={styles.buttonText}>{item.label}</span>
-            <span style={styles.meta}>{item.meta}</span>
-          </button>
-        ))}
+        {exportItems.map((item) => {
+          const isHovered = hoveredKey === item.key;
+          const isActive = activeKey === item.key;
+
+          return (
+            <button
+              key={item.key}
+              type="button"
+              style={{
+                ...styles.button,
+                color: item.color,
+                background: item.background,
+                borderColor: isHovered && !item.blocked ? item.color : item.border,
+                opacity: item.blocked ? 0.68 : 1,
+                transform: item.blocked
+                  ? "none"
+                  : isActive
+                    ? "scale(0.95)"
+                    : isHovered
+                      ? "scale(1.02)"
+                      : "scale(1)",
+                boxShadow: isHovered && !item.blocked
+                  ? "0 4px 12px rgba(0,0,0,0.06)"
+                  : "none",
+                filter: isHovered && !item.blocked ? "brightness(0.97)" : "none",
+              }}
+              onMouseEnter={() => !item.blocked && setHoveredKey(item.key)}
+              onMouseLeave={() => {
+                setHoveredKey(null);
+                setActiveKey(null);
+              }}
+              onMouseDown={() => !item.blocked && setActiveKey(item.key)}
+              onMouseUp={() => setActiveKey(null)}
+              onClick={() => handleExport(item)}
+              title={item.blocked ? item.blockedMessage : item.label}
+            >
+              <i className={`bi ${item.icon}`} style={styles.buttonIcon} />
+              <span style={styles.buttonText}>{item.label}</span>
+              <span style={styles.meta}>{item.meta}</span>
+            </button>
+          );
+        })}
       </div>
     </section>
   );
@@ -161,6 +187,7 @@ const styles = {
     alignItems: "center",
     padding: "8px 10px",
     textAlign: "left",
+    transition: "all 0.2s ease-in-out",
   },
   buttonIcon: {
     gridRow: "1 / span 2",

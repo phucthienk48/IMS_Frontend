@@ -19,36 +19,30 @@ export default function Home() {
 
   const quickActions = [
     {
-      icon: "bi-file-earmark-text-fill",
-      title: "Hồ sơ thực tập",
-      desc: "Tạo, cập nhật và xuất các biểu mẫu thực tập theo đúng mẫu.",
-      path: "/application",
-    },
-    {
       icon: "bi-journal-bookmark-fill",
       title: "Danh sách đề tài",
-      desc: "Tra cứu đề tài, thời gian thực tập và thông tin doanh nghiệp.",
+      desc: "Theo dõi danh sách các đề tài thực tập và lựa chọn đề tài phù hợp.",
       path: "/topics",
     },
     {
+      icon: "bi-file-earmark-text-fill",
+      title: "Hồ sơ thực tập",
+      desc: "Nộp hồ sơ thực tập (CV, bảng điểm, thông tin cá nhân).",
+      path: "/application",
+    },
+
+    {
       icon: "bi-clipboard-check-fill",
       title: "Kết quả đánh giá",
-      desc: "Theo dõi trạng thái đánh giá và kết quả sau kỳ thực tập.",
+      desc: "Báo cáo tiến độ thực tập hằng tuần cho giảng viên.",
       path: "/internship-result",
-    },
-    {
-      icon: "bi-person-circle",
-      title: "Hồ sơ cá nhân",
-      desc: "Cập nhật thông tin tài khoản dùng trong hồ sơ thực tập.",
-      path: "/profile",
     },
   ];
 
   const processItems = [
-    "Chọn đề tài hoặc cập nhật thông tin doanh nghiệp thực tập.",
-    "Nộp hồ sơ thực tập kèm CV, bảng điểm và thông tin liên hệ.",
-    "Ghi nhận báo cáo tiến độ hàng tuần để giảng viên theo dõi.",
-    "Xuất phiếu nhận, phiếu giao việc và phiếu theo dõi khi hồ sơ đủ dữ liệu.",
+    "Theo dõi danh sách các đề tài thực tập và lựa chọn đề tài phù hợp.",
+    "Nộp hồ sơ thực tập (CV, bảng điểm, thông tin cá nhân).",
+    "Báo cáo tiến độ thực tập hằng tuần cho giảng viên.",
   ];
 
   return (
@@ -60,9 +54,6 @@ export default function Home() {
             <i className="bi bi-grid-1x2-fill"></i>
             Hệ thống quản lý thực tập
           </h1>
-          <p className="ims-page-subtitle">
-            Quản lý hồ sơ, đề tài, báo cáo tiến độ và kết quả thực tập trên một màn hình làm việc.
-          </p>
         </div>
         <button style={styles.primaryBtn} onClick={() => (user ? navigate(destination) : navigate("/login"))}>
           <i className={`bi ${user ? "bi-arrow-right" : "bi-box-arrow-in-right"}`}></i>

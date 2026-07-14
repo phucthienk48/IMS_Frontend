@@ -24,7 +24,7 @@ export default function Dashboard() {
 
   const menuItems = [
     { path: "/admin", icon: "bi-speedometer2", label: "Tổng quan" },
-    { path: "/admin/internship-center", icon: "bi-building-gear", label: "Trung tâm thực tập" },
+    { path: "/admin/internship-center", icon: "bi-building-gear", label: "Thông tin trung tâm" },
     { path: "/admin/users", icon: "bi-people-fill", label: "Quản lý tài khoản" },
     { path: "/admin/students", icon: "bi-mortarboard-fill", label: "Quản lý sinh viên" },
     { path: "/admin/internship", icon: "bi-book-fill", label: "Quản lý đề tài" },
@@ -43,15 +43,6 @@ export default function Dashboard() {
   return (
     <div className="ims-admin-shell" style={styles.wrapper}>
       <aside className="ims-admin-sidebar" style={styles.sidebar}>
-        <div style={styles.brandArea}>
-          <div style={styles.logoBox}>
-            <i className="bi bi-building-fill-gear"></i>
-          </div>
-          <div>
-            <div style={styles.brandTitle}>IMS ADMIN</div>
-            <div style={styles.brandSub}>CUSC Internship System</div>
-          </div>
-        </div>
 
         <div style={styles.userPanel}>
           <img

@@ -9,6 +9,7 @@ import {
   createEmptyAssignmentRows,
   saveWeeklyAssignments,
 } from "../../utils/weeklyAssignments";
+import { exportPhieuDanhGiaWord } from "../../utils/wordExport";
 
 const API = "http://localhost:5000";
 
@@ -27,6 +28,32 @@ const reportDateRange = (report) => {
   return "Chưa nhập thời gian";
 };
 
+const calculateAvgScore = (details) => {
+  if (!details) return "";
+  const { i1, i2, i3, i4, ii1, ii2, ii3, iii1, iii2, iii3, isOnline } = details;
+  const scores = [];
+  
+  if (isOnline) {
+    // Skip i1, i2, i3
+  } else {
+    if (i1 !== "" && !isNaN(parseFloat(i1))) scores.push(parseFloat(i1));
+    if (i2 !== "" && !isNaN(parseFloat(i2))) scores.push(parseFloat(i2));
+    if (i3 !== "" && !isNaN(parseFloat(i3))) scores.push(parseFloat(i3));
+  }
+  
+  if (i4 !== "" && !isNaN(parseFloat(i4))) scores.push(parseFloat(i4));
+  if (ii1 !== "" && !isNaN(parseFloat(ii1))) scores.push(parseFloat(ii1));
+  if (ii2 !== "" && !isNaN(parseFloat(ii2))) scores.push(parseFloat(ii2));
+  if (ii3 !== "" && !isNaN(parseFloat(ii3))) scores.push(parseFloat(ii3));
+  if (iii1 !== "" && !isNaN(parseFloat(iii1))) scores.push(parseFloat(iii1));
+  if (iii2 !== "" && !isNaN(parseFloat(iii2))) scores.push(parseFloat(iii2));
+  if (iii3 !== "" && !isNaN(parseFloat(iii3))) scores.push(parseFloat(iii3));
+  
+  if (scores.length === 0) return "";
+  const sum = scores.reduce((a, b) => a + b, 0);
+  return (sum / scores.length).toFixed(1);
+};
+
 export default function AdminStudent() {
   const navigate = useNavigate();
   const [applications, setApplications] = useState([]);
@@ -37,8 +64,20 @@ export default function AdminStudent() {
   const [evaluatingApp, setEvaluatingApp] = useState(null);
   const [evaluationForm, setEvaluationForm] = useState({
     internshipStatus: "đang thực tập",
-    score: "",
     feedback: "",
+    evaluationDetails: {
+      i1: "",
+      i2: "",
+      i3: "",
+      i4: "",
+      ii1: "",
+      ii2: "",
+      ii3: "",
+      iii1: "",
+      iii2: "",
+      iii3: "",
+      isOnline: false,
+    }
   });
   const [saving, setSaving] = useState(false);
 
@@ -182,10 +221,23 @@ export default function AdminStudent() {
 
   const openEvaluationModal = (app) => {
     setEvaluatingApp(app);
+    const details = app.evaluationDetails || {};
     setEvaluationForm({
       internshipStatus: app.internshipStatus || "đang thực tập",
-      score: app.score !== null && app.score !== undefined ? app.score.toString() : "",
       feedback: app.feedback || "",
+      evaluationDetails: {
+        i1: details.i1 !== null && details.i1 !== undefined ? details.i1.toString() : "",
+        i2: details.i2 !== null && details.i2 !== undefined ? details.i2.toString() : "",
+        i3: details.i3 !== null && details.i3 !== undefined ? details.i3.toString() : "",
+        i4: details.i4 !== null && details.i4 !== undefined ? details.i4.toString() : "",
+        ii1: details.ii1 !== null && details.ii1 !== undefined ? details.ii1.toString() : "",
+        ii2: details.ii2 !== null && details.ii2 !== undefined ? details.ii2.toString() : "",
+        ii3: details.ii3 !== null && details.ii3 !== undefined ? details.ii3.toString() : "",
+        iii1: details.iii1 !== null && details.iii1 !== undefined ? details.iii1.toString() : "",
+        iii2: details.iii2 !== null && details.iii2 !== undefined ? details.iii2.toString() : "",
+        iii3: details.iii3 !== null && details.iii3 !== undefined ? details.iii3.toString() : "",
+        isOnline: details.isOnline || false,
+      }
     });
   };
 
@@ -193,9 +245,25 @@ export default function AdminStudent() {
     e.preventDefault();
     if (!evaluatingApp) return;
 
-    const scoreNum = evaluationForm.score !== "" ? parseFloat(evaluationForm.score) : null;
-    if (scoreNum !== null && (isNaN(scoreNum) || scoreNum < 0 || scoreNum > 10)) {
-      alert("Điểm số phải là số thực nằm trong khoảng từ 0 đến 10");
+    const details = evaluationForm.evaluationDetails;
+    const finalDetails = {
+      isOnline: details.isOnline,
+      i1: !details.isOnline && details.i1 !== "" ? parseFloat(details.i1) : null,
+      i2: !details.isOnline && details.i2 !== "" ? parseFloat(details.i2) : null,
+      i3: !details.isOnline && details.i3 !== "" ? parseFloat(details.i3) : null,
+      i4: details.i4 !== "" ? parseFloat(details.i4) : null,
+      ii1: details.ii1 !== "" ? parseFloat(details.ii1) : null,
+      ii2: details.ii2 !== "" ? parseFloat(details.ii2) : null,
+      ii3: details.ii3 !== "" ? parseFloat(details.ii3) : null,
+      iii1: details.iii1 !== "" ? parseFloat(details.iii1) : null,
+      iii2: details.iii2 !== "" ? parseFloat(details.iii2) : null,
+      iii3: details.iii3 !== "" ? parseFloat(details.iii3) : null,
+    };
+
+    const checkRange = (val) => val === null || (!isNaN(val) && val >= 1 && val <= 10);
+    const valid = Object.keys(finalDetails).every(k => k === 'isOnline' || checkRange(finalDetails[k]));
+    if (!valid) {
+      alert("Tất cả điểm số phải nằm trong khoảng từ 1.0 đến 10.0");
       return;
     }
 
@@ -212,8 +280,8 @@ export default function AdminStudent() {
         },
         body: JSON.stringify({
           internshipStatus: evaluationForm.internshipStatus,
-          score: scoreNum,
           feedback: evaluationForm.feedback,
+          evaluationDetails: finalDetails,
         }),
       });
 
@@ -709,22 +777,22 @@ export default function AdminStudent() {
 
       {evaluatingApp && (
         <div style={styles.modalOverlay}>
-          <div style={styles.modalBox}>
+          <form onSubmit={handleEvaluationSubmit} style={styles.modalBox}>
             <div style={styles.modalHeader}>
               <h4 style={{ margin: 0, color: "#1e3a8a", display: "flex", alignItems: "center", gap: 8 }}>
                 <i className="bi bi-patch-check-fill text-primary"></i> ĐÁNH GIÁ THỰC TẬP SINH
               </h4>
-              <button style={styles.closeBtn} onClick={() => setEvaluatingApp(null)}>✕</button>
+              <button type="button" style={styles.closeBtn} onClick={() => setEvaluatingApp(null)}>✕</button>
             </div>
 
-            <form onSubmit={handleEvaluationSubmit}>
-              <div style={styles.modalBody}>
+            <div style={styles.modalBody}>
                 <div style={styles.studentQuickInfo}>
                   <div>Sinh viên: <strong>{evaluatingApp.fullName}</strong></div>
                   <div>MSSV: <strong>{evaluatingApp.studentCode}</strong></div>
                   <div>Đề tài: <strong>{evaluatingApp.topic?.topicname}</strong></div>
                 </div>
 
+                {/* Trạng thái thực tập */}
                 <div style={styles.formGroup}>
                   <label style={styles.formLabel}>Trạng thái thực tập <span style={{ color: "red" }}>*</span></label>
                   <select
@@ -739,21 +807,249 @@ export default function AdminStudent() {
                   </select>
                 </div>
 
-                <div style={styles.formGroup}>
-                  <label style={styles.formLabel}>Điểm thực tập (Thang điểm 10)</label>
-                  <input
-                    type="number"
-                    style={styles.formInput}
-                    placeholder="Nhập điểm số (ví dụ: 8.5) hoặc để trống"
-                    min="0"
-                    max="10"
-                    step="0.1"
-                    value={evaluationForm.score}
-                    onChange={(e) => setEvaluationForm({ ...evaluationForm, score: e.target.value })}
-                  />
-                  <small style={{ color: "#64748b", marginTop: 4, display: "block" }}>
-                    Nhập điểm số từ 0.0 đến 10.0. Để trống nếu chưa muốn chấm điểm.
-                  </small>
+                {/* Đánh giá chi tiết */}
+                <div style={{ ...styles.formGroup, border: "1px solid #e2e8f0", padding: 16, borderRadius: 8, backgroundColor: "#f8fafc", marginBottom: 16 }}>
+                  <h5 style={{ margin: "0 0 12px 0", color: "#1e3a8a", borderBottom: "1px solid #e2e8f0", paddingBottom: 6 }}>
+                    Đánh giá chi tiết theo mẫu M-TT-03
+                  </h5>
+                  
+                  <div style={{ marginBottom: 12, display: "flex", alignItems: "center", gap: 8 }}>
+                    <input
+                      type="checkbox"
+                      id="isOnlineCheck"
+                      checked={evaluationForm.evaluationDetails.isOnline}
+                      onChange={(e) => {
+                        const isOnline = e.target.checked;
+                        setEvaluationForm({
+                          ...evaluationForm,
+                          evaluationDetails: {
+                            ...evaluationForm.evaluationDetails,
+                            isOnline,
+                            ...(isOnline ? { i1: "", i2: "", i3: "" } : {})
+                          }
+                        });
+                      }}
+                    />
+                    <label htmlFor="isOnlineCheck" style={{ fontWeight: "bold", cursor: "pointer", color: "#475569" }}>
+                      Sinh viên thực tập Online (Không chấm điểm I.1, I.2, I.3)
+                    </label>
+                  </div>
+
+                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px", marginTop: "12px", border: "1px solid #cbd5e1" }}>
+                    <thead>
+                      <tr style={{ background: "#f1f5f9" }}>
+                        <th style={{ border: "1px solid #cbd5e1", padding: "10px", color: "#1e3a8a", fontWeight: "bold", textAlign: "left" }}>Nội dung đánh giá</th>
+                        <th style={{ border: "1px solid #cbd5e1", padding: "10px", color: "#1e3a8a", fontWeight: "bold", textAlign: "center", width: "130px" }}>Điểm (từ 1 - 10)</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {/* Section I */}
+                      <tr style={{ background: "#f8fafc", fontWeight: "bold", color: "#334155" }}>
+                        <td style={{ border: "1px solid #cbd5e1", padding: "10px" }} colSpan="2">I. Tinh thần kỷ luật</td>
+                      </tr>
+                      <tr>
+                        <td style={{ border: "1px solid #cbd5e1", padding: "10px", paddingLeft: "24px" }}>I.1. Thực hiện nội quy của cơ quan (nếu thực tập online thì không chấm điểm)</td>
+                        <td style={{ border: "1px solid #cbd5e1", padding: "6px", textAlign: "center" }}>
+                          <input
+                            type="number"
+                            min="1"
+                            max="10"
+                            step="0.1"
+                            disabled={evaluationForm.evaluationDetails.isOnline}
+                            style={{ width: "80px", padding: "6px 8px", borderRadius: "6px", border: "1px solid #cbd5e1", textAlign: "center", outline: "none", backgroundColor: evaluationForm.evaluationDetails.isOnline ? "#e2e8f0" : "#fff" }}
+                            placeholder={evaluationForm.evaluationDetails.isOnline ? "Online" : "1 - 10"}
+                            value={evaluationForm.evaluationDetails.i1}
+                            onChange={(e) => setEvaluationForm({
+                              ...evaluationForm,
+                              evaluationDetails: { ...evaluationForm.evaluationDetails, i1: e.target.value }
+                            })}
+                          />
+                        </td>
+                      </tr>
+                      <tr>
+                        <td style={{ border: "1px solid #cbd5e1", padding: "10px", paddingLeft: "24px" }}>I.2. Chấp hành giờ giấc làm việc (nếu thực tập online thì không chấm điểm)</td>
+                        <td style={{ border: "1px solid #cbd5e1", padding: "6px", textAlign: "center" }}>
+                          <input
+                            type="number"
+                            min="1"
+                            max="10"
+                            step="0.1"
+                            disabled={evaluationForm.evaluationDetails.isOnline}
+                            style={{ width: "80px", padding: "6px 8px", borderRadius: "6px", border: "1px solid #cbd5e1", textAlign: "center", outline: "none", backgroundColor: evaluationForm.evaluationDetails.isOnline ? "#e2e8f0" : "#fff" }}
+                            placeholder={evaluationForm.evaluationDetails.isOnline ? "Online" : "1 - 10"}
+                            value={evaluationForm.evaluationDetails.i2}
+                            onChange={(e) => setEvaluationForm({
+                              ...evaluationForm,
+                              evaluationDetails: { ...evaluationForm.evaluationDetails, i2: e.target.value }
+                            })}
+                          />
+                        </td>
+                      </tr>
+                      <tr>
+                        <td style={{ border: "1px solid #cbd5e1", padding: "10px", paddingLeft: "24px" }}>I.3. Thái độ giao tiếp với cán bộ trong đơn vị (nếu thực tập online thì không chấm điểm)</td>
+                        <td style={{ border: "1px solid #cbd5e1", padding: "6px", textAlign: "center" }}>
+                          <input
+                            type="number"
+                            min="1"
+                            max="10"
+                            step="0.1"
+                            disabled={evaluationForm.evaluationDetails.isOnline}
+                            style={{ width: "80px", padding: "6px 8px", borderRadius: "6px", border: "1px solid #cbd5e1", textAlign: "center", outline: "none", backgroundColor: evaluationForm.evaluationDetails.isOnline ? "#e2e8f0" : "#fff" }}
+                            placeholder={evaluationForm.evaluationDetails.isOnline ? "Online" : "1 - 10"}
+                            value={evaluationForm.evaluationDetails.i3}
+                            onChange={(e) => setEvaluationForm({
+                              ...evaluationForm,
+                              evaluationDetails: { ...evaluationForm.evaluationDetails, i3: e.target.value }
+                            })}
+                          />
+                        </td>
+                      </tr>
+                      <tr>
+                        <td style={{ border: "1px solid #cbd5e1", padding: "10px", paddingLeft: "24px" }}>I.4. Tích cực trong công việc</td>
+                        <td style={{ border: "1px solid #cbd5e1", padding: "6px", textAlign: "center" }}>
+                          <input
+                            type="number"
+                            min="1"
+                            max="10"
+                            step="0.1"
+                            style={{ width: "80px", padding: "6px 8px", borderRadius: "6px", border: "1px solid #cbd5e1", textAlign: "center", outline: "none" }}
+                            placeholder="1 - 10"
+                            value={evaluationForm.evaluationDetails.i4}
+                            onChange={(e) => setEvaluationForm({
+                              ...evaluationForm,
+                              evaluationDetails: { ...evaluationForm.evaluationDetails, i4: e.target.value }
+                            })}
+                          />
+                        </td>
+                      </tr>
+
+                      {/* Section II */}
+                      <tr style={{ background: "#f8fafc", fontWeight: "bold", color: "#334155" }}>
+                        <td style={{ border: "1px solid #cbd5e1", padding: "10px" }} colSpan="2">II. Khả năng chuyên môn, nghiệp vụ</td>
+                      </tr>
+                      <tr>
+                        <td style={{ border: "1px solid #cbd5e1", padding: "10px", paddingLeft: "24px" }}>II.1. Đáp ứng yêu cầu công việc</td>
+                        <td style={{ border: "1px solid #cbd5e1", padding: "6px", textAlign: "center" }}>
+                          <input
+                            type="number"
+                            min="1"
+                            max="10"
+                            step="0.1"
+                            style={{ width: "80px", padding: "6px 8px", borderRadius: "6px", border: "1px solid #cbd5e1", textAlign: "center", outline: "none" }}
+                            placeholder="1 - 10"
+                            value={evaluationForm.evaluationDetails.ii1}
+                            onChange={(e) => setEvaluationForm({
+                              ...evaluationForm,
+                              evaluationDetails: { ...evaluationForm.evaluationDetails, ii1: e.target.value }
+                            })}
+                          />
+                        </td>
+                      </tr>
+                      <tr>
+                        <td style={{ border: "1px solid #cbd5e1", padding: "10px", paddingLeft: "24px" }}>II.2. Tinh thần học hỏi, nâng cao trình độ chuyên môn, nghiệp vụ</td>
+                        <td style={{ border: "1px solid #cbd5e1", padding: "6px", textAlign: "center" }}>
+                          <input
+                            type="number"
+                            min="1"
+                            max="10"
+                            step="0.1"
+                            style={{ width: "80px", padding: "6px 8px", borderRadius: "6px", border: "1px solid #cbd5e1", textAlign: "center", outline: "none" }}
+                            placeholder="1 - 10"
+                            value={evaluationForm.evaluationDetails.ii2}
+                            onChange={(e) => setEvaluationForm({
+                              ...evaluationForm,
+                              evaluationDetails: { ...evaluationForm.evaluationDetails, ii2: e.target.value }
+                            })}
+                          />
+                        </td>
+                      </tr>
+                      <tr>
+                        <td style={{ border: "1px solid #cbd5e1", padding: "10px", paddingLeft: "24px" }}>II.3. Có đề xuất, sáng kiến, năng động trong công việc</td>
+                        <td style={{ border: "1px solid #cbd5e1", padding: "6px", textAlign: "center" }}>
+                          <input
+                            type="number"
+                            min="1"
+                            max="10"
+                            step="0.1"
+                            style={{ width: "80px", padding: "6px 8px", borderRadius: "6px", border: "1px solid #cbd5e1", textAlign: "center", outline: "none" }}
+                            placeholder="1 - 10"
+                            value={evaluationForm.evaluationDetails.ii3}
+                            onChange={(e) => setEvaluationForm({
+                              ...evaluationForm,
+                              evaluationDetails: { ...evaluationForm.evaluationDetails, ii3: e.target.value }
+                            })}
+                          />
+                        </td>
+                      </tr>
+
+                      {/* Section III */}
+                      <tr style={{ background: "#f8fafc", fontWeight: "bold", color: "#334155" }}>
+                        <td style={{ border: "1px solid #cbd5e1", padding: "10px" }} colSpan="2">III. Kết quả công tác</td>
+                      </tr>
+                      <tr>
+                        <td style={{ border: "1px solid #cbd5e1", padding: "10px", paddingLeft: "24px" }}>III.1. Báo cáo tiến độ công việc cho cán bộ hướng dẫn mỗi tuần 1 lần</td>
+                        <td style={{ border: "1px solid #cbd5e1", padding: "6px", textAlign: "center" }}>
+                          <input
+                            type="number"
+                            min="1"
+                            max="10"
+                            step="0.1"
+                            style={{ width: "80px", padding: "6px 8px", borderRadius: "6px", border: "1px solid #cbd5e1", textAlign: "center", outline: "none" }}
+                            placeholder="1 - 10"
+                            value={evaluationForm.evaluationDetails.iii1}
+                            onChange={(e) => setEvaluationForm({
+                              ...evaluationForm,
+                              evaluationDetails: { ...evaluationForm.evaluationDetails, iii1: e.target.value }
+                            })}
+                          />
+                        </td>
+                      </tr>
+                      <tr>
+                        <td style={{ border: "1px solid #cbd5e1", padding: "10px", paddingLeft: "24px" }}>III.2. Hoàn thành công việc được giao</td>
+                        <td style={{ border: "1px solid #cbd5e1", padding: "6px", textAlign: "center" }}>
+                          <input
+                            type="number"
+                            min="1"
+                            max="10"
+                            step="0.1"
+                            style={{ width: "80px", padding: "6px 8px", borderRadius: "6px", border: "1px solid #cbd5e1", textAlign: "center", outline: "none" }}
+                            placeholder="1 - 10"
+                            value={evaluationForm.evaluationDetails.iii2}
+                            onChange={(e) => setEvaluationForm({
+                              ...evaluationForm,
+                              evaluationDetails: { ...evaluationForm.evaluationDetails, iii2: e.target.value }
+                            })}
+                          />
+                        </td>
+                      </tr>
+                      <tr>
+                        <td style={{ border: "1px solid #cbd5e1", padding: "10px", paddingLeft: "24px" }}>III.3. Kết quả công việc có đóng góp cho cơ quan nơi thực tập</td>
+                        <td style={{ border: "1px solid #cbd5e1", padding: "6px", textAlign: "center" }}>
+                          <input
+                            type="number"
+                            min="1"
+                            max="10"
+                            step="0.1"
+                            style={{ width: "80px", padding: "6px 8px", borderRadius: "6px", border: "1px solid #cbd5e1", textAlign: "center", outline: "none" }}
+                            placeholder="1 - 10"
+                            value={evaluationForm.evaluationDetails.iii3}
+                            onChange={(e) => setEvaluationForm({
+                              ...evaluationForm,
+                              evaluationDetails: { ...evaluationForm.evaluationDetails, iii3: e.target.value }
+                            })}
+                          />
+                        </td>
+                      </tr>
+
+                      {/* Summary Row */}
+                      <tr style={{ background: "#eff6ff", fontWeight: "bold", color: "#1e3a8a" }}>
+                        <td style={{ border: "1px solid #cbd5e1", padding: "10px", textAlign: "right" }}>Cộng (Điểm trung bình):</td>
+                        <td style={{ border: "1px solid #cbd5e1", padding: "10px", textAlign: "center", fontSize: "16px", color: "#10b981" }}>
+                          {calculateAvgScore(evaluationForm.evaluationDetails) || "---"}
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
                 </div>
 
                 <div style={styles.formGroup}>
@@ -766,27 +1062,35 @@ export default function AdminStudent() {
                     onChange={(e) => setEvaluationForm({ ...evaluationForm, feedback: e.target.value })}
                   />
                 </div>
-              </div>
+            </div>
 
-              <div style={styles.modalFooter}>
-                <button
-                  type="button"
-                  style={styles.modalCancelBtn}
-                  onClick={() => setEvaluatingApp(null)}
-                  disabled={saving}
-                >
-                  Hủy
-                </button>
-                <button
-                  type="submit"
-                  style={styles.modalSaveBtn}
-                  disabled={saving}
-                >
-                  {saving ? "Đang lưu..." : "Lưu kết quả"}
-                </button>
-              </div>
-            </form>
-          </div>
+            <div style={styles.modalFooter}>
+              <button
+                type="button"
+                style={styles.modalCancelBtn}
+                onClick={() => setEvaluatingApp(null)}
+                disabled={saving}
+              >
+                Hủy
+              </button>
+              <button
+                type="button"
+                style={{ ...styles.modalCancelBtn, background: "#1e3a8a", color: "#fff", borderColor: "#1e3a8a" }}
+                onClick={() => exportPhieuDanhGiaWord(evaluatingApp)}
+                disabled={saving}
+              >
+                <i className="bi bi-file-earmark-word-fill" style={{ marginRight: 6 }}></i>
+                Xuất đánh giá
+              </button>
+              <button
+                type="submit"
+                style={styles.modalSaveBtn}
+                disabled={saving}
+              >
+                {saving ? "Đang lưu..." : "Lưu kết quả"}
+              </button>
+            </div>
+          </form>
         </div>
       )}
 
@@ -1083,10 +1387,10 @@ const styles = {
   documentBtn: { padding: "7px 12px", borderRadius: "8px", background: "#eff6ff", color: "#1d4ed8", fontSize: "12px", fontWeight: "600", cursor: "pointer", border: "1px solid #bfdbfe", display: "inline-flex", alignItems: "center", gap: 4 },
 
   modalOverlay: { position: "fixed", inset: 0, background: "rgba(15,23,42,0.3)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 2000 },
-  modalBox: { width: "100%", maxWidth: "500px", background: "#ffffff", borderRadius: "20px", boxShadow: "0 20px 50px rgba(15,23,42,0.15)", overflow: "hidden", animation: "modalFadeIn 0.3s ease-out" },
+  modalBox: { width: "100%", maxWidth: "680px", maxHeight: "90vh", background: "#ffffff", borderRadius: "20px", boxShadow: "0 20px 50px rgba(15,23,42,0.15)", overflow: "hidden", animation: "modalFadeIn 0.3s ease-out", display: "flex", flexDirection: "column" },
   modalHeader: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "20px 24px", background: "#f8fafc", borderBottom: "1px solid #e2e8f0" },
   closeBtn: { border: "none", background: "none", fontSize: "18px", color: "#94a3b8", cursor: "pointer", transition: "color 0.2s" },
-  modalBody: { padding: "24px" },
+  modalBody: { padding: "24px", overflowY: "auto" },
   studentQuickInfo: { background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: "12px", padding: "14px 18px", marginBottom: "20px", fontSize: "13px", color: "#1e40af", display: "flex", flexDirection: "column", gap: "6px" },
   formGroup: { marginBottom: "18px" },
   formLabel: { display: "block", fontSize: "13px", fontWeight: "600", color: "#334155", marginBottom: "6px" },

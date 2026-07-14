@@ -112,10 +112,6 @@ export default function HomeAdmin() {
             hồ sơ và các chức năng quản trị chính.
           </p>
         </div>
-        <button style={styles.primaryBtn} onClick={() => navigate("/admin/application")}>
-          <i className="bi bi-inbox-fill"></i>
-          Xem hồ sơ
-        </button>
       </section>
 
       {error && (

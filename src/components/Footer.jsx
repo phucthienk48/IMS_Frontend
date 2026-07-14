@@ -18,20 +18,6 @@ export default function Footer() {
           </div>
         </div>
 
-        <div style={styles.linkGroup}>
-          <a href="#" style={styles.link}>
-            <i className="bi bi-envelope-fill"></i>
-            Liên hệ
-          </a>
-          <a href="#" style={styles.link}>
-            <i className="bi bi-diagram-3-fill"></i>
-            Sơ đồ hệ thống
-          </a>
-          <a href="#" style={styles.link}>
-            <i className="bi bi-shield-lock-fill"></i>
-            Chính sách bảo mật
-          </a>
-        </div>
       </div>
 
       <div style={styles.copyright}>

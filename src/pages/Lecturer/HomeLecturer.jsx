@@ -6,34 +6,29 @@ export default function HomeLecturer() {
 
   const menuItems = [
     {
-      path: "/lecturer/applications",
-      icon: "bi-file-earmark-text-fill",
-      title: "Duyệt hồ sơ thực tập",
-      desc: "Kiểm tra hồ sơ đăng ký, thông tin sinh viên và tài liệu đính kèm.",
-    },
-    {
       path: "/lecturer/topics",
       icon: "bi-journal-text",
       title: "Quản lý đề tài",
       desc: "Cập nhật đề tài, doanh nghiệp, người hướng dẫn và thời gian thực tập.",
     },
     {
+      path: "/lecturer/applications",
+      icon: "bi-file-earmark-text-fill",
+      title: "Duyệt hồ sơ thực tập",
+      desc: "Kiểm tra hồ sơ đăng ký, thông tin sinh viên và tài liệu đính kèm.",
+    },
+
+    {
       path: "/lecturer/students",
       icon: "bi-people-fill",
       title: "Sinh viên hướng dẫn",
       desc: "Theo dõi báo cáo tiến độ, nhận xét và thông tin biểu mẫu của sinh viên.",
     },
-    {
-      path: "/lecturer/profile",
-      icon: "bi-person-circle",
-      title: "Hồ sơ cá nhân",
-      desc: "Kiểm tra thông tin tài khoản giảng viên dùng trong hệ thống.",
-    },
   ];
 
   const reviewSteps = [
     "Tiếp nhận hồ sơ sinh viên gửi lên hệ thống.",
-    "Kiểm tra đề tài, doanh nghiệp và thông tin người hướng dẫn.",
+    "Kiểm tra đề tài, thông tin doanh nghiệp và người hướng dẫn.",
     "Theo dõi báo cáo tiến độ hàng tuần và nhập nhận xét.",
     "Hỗ trợ sinh viên hoàn thiện các phiếu Word theo mẫu.",
   ];
@@ -47,9 +42,6 @@ export default function HomeLecturer() {
             <i className="bi bi-person-workspace"></i>
             Bảng điều khiển giảng viên
           </h1>
-          <p className="ims-page-subtitle">
-            Quản lý hồ sơ, đề tài và tiến độ thực tập của sinh viên được phân công.
-          </p>
         </div>
         <div style={styles.userBadge}>
           <i className="bi bi-person-badge-fill"></i>
